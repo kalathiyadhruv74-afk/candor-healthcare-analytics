@@ -811,6 +811,7 @@ def collection_analytics_api(request):
     end_date = request.GET.get("end_date", "").strip()
     branch_id = request.GET.get("branch_id", "").strip()
     source_filter = request.GET.get("source", "").strip().lower()  # all, healthcare, pharmacy, return
+    exclude_gst = request.GET.get("exclude_gst", "1").strip() == "1"
 
     cursor = connection.cursor()
 
@@ -884,15 +885,27 @@ def collection_analytics_api(request):
     hc_other = float(hc_row[8] or 0.0)
 
     # --- EXECUTE PHARMACY COLLECTION AGGREGATE ---
+    if exclude_gst:
+        ph_factor = """
+            CASE 
+                WHEN mpi.sell_price > 0 AND mpi.sell_price_without_gst > 0 
+                THEN (mpi.sell_price_without_gst / mpi.sell_price)
+                ELSE 1.0
+            END
+        """
+    else:
+        ph_factor = "1.0"
+
     ph_sql = f"""
         SELECT 
-            SUM(mph.payment_cash + mph.payment_upi + mph.payment_cheque + mph.payment_neft) as total_pharmacy,
+            SUM((mph.payment_cash + mph.payment_upi + mph.payment_cheque + mph.payment_neft) * ({ph_factor})) as total_pharmacy,
             COUNT(*) as count_pharmacy,
-            SUM(mph.payment_cash) as cash_amt,
-            SUM(mph.payment_upi) as upi_amt,
-            SUM(mph.payment_cheque) as cheque_amt,
-            SUM(mph.payment_neft) as neft_amt
+            SUM(mph.payment_cash * ({ph_factor})) as cash_amt,
+            SUM(mph.payment_upi * ({ph_factor})) as upi_amt,
+            SUM(mph.payment_cheque * ({ph_factor})) as cheque_amt,
+            SUM(mph.payment_neft * ({ph_factor})) as neft_amt
         FROM medication_payment_history mph
+        LEFT JOIN medication_patients_invoices mpi ON mph.medication_patients_invoice_id = mpi.id
         WHERE {ph_where_sql}
     """
     cursor.execute(ph_sql, ph_params)
@@ -905,17 +918,30 @@ def collection_analytics_api(request):
     ph_neft = float(ph_row[5] or 0.0)
 
     # --- EXECUTE PHARMACY RETURN AGGREGATE ---
-    pr_sql = f"""
-        SELECT 
-            SUM(msc.payment_cash + msc.payment_upi + msc.payment_cheque + msc.payment_neft) as total_return,
-            COUNT(*) as count_return,
-            SUM(msc.payment_cash) as cash_amt,
-            SUM(msc.payment_upi) as upi_amt,
-            SUM(msc.payment_cheque) as cheque_amt,
-            SUM(msc.payment_neft) as neft_amt
-        FROM medication_sales_credit msc
-        WHERE {pr_where_sql}
-    """
+    if exclude_gst:
+        pr_sql = f"""
+            SELECT 
+                SUM(msc.price_without_gst) as total_return,
+                COUNT(*) as count_return,
+                SUM(msc.payment_cash * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))) as cash_amt,
+                SUM(msc.payment_upi * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))) as upi_amt,
+                SUM(msc.payment_cheque * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))) as cheque_amt,
+                SUM(msc.payment_neft * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))) as neft_amt
+            FROM medication_sales_credit msc
+            WHERE {pr_where_sql}
+        """
+    else:
+        pr_sql = f"""
+            SELECT 
+                SUM(msc.payment_cash + msc.payment_upi + msc.payment_cheque + msc.payment_neft) as total_return,
+                COUNT(*) as count_return,
+                SUM(msc.payment_cash) as cash_amt,
+                SUM(msc.payment_upi) as upi_amt,
+                SUM(msc.payment_cheque) as cheque_amt,
+                SUM(msc.payment_neft) as neft_amt
+            FROM medication_sales_credit msc
+            WHERE {pr_where_sql}
+        """
     cursor.execute(pr_sql, pr_params)
     pr_row = cursor.fetchone() or (0, 0, 0, 0, 0, 0)
     pr_return = float(pr_row[0] or 0.0)
@@ -962,8 +988,9 @@ def collection_analytics_api(request):
     cursor.execute(f"""
         SELECT 
             DATE_FORMAT(mph.date_of_transaction, '%%Y-%%m') as ym,
-            SUM(mph.payment_cash + mph.payment_upi + mph.payment_cheque + mph.payment_neft) as gross_ph
+            SUM((mph.payment_cash + mph.payment_upi + mph.payment_cheque + mph.payment_neft) * ({ph_factor})) as gross_ph
         FROM medication_payment_history mph
+        LEFT JOIN medication_patients_invoices mpi ON mph.medication_patients_invoice_id = mpi.id
         WHERE {ph_where_sql}
         GROUP BY ym
         ORDER BY ym ASC
@@ -971,15 +998,26 @@ def collection_analytics_api(request):
     ph_monthly = {r[0]: float(r[1] or 0) for r in cursor.fetchall()}
 
     # Monthly pharmacy return
-    cursor.execute(f"""
-        SELECT 
-            DATE_FORMAT(msc.date_of_transaction, '%%Y-%%m') as ym,
-            SUM(msc.payment_cash + msc.payment_upi + msc.payment_cheque + msc.payment_neft) as return_ph
-        FROM medication_sales_credit msc
-        WHERE {pr_where_sql}
-        GROUP BY ym
-        ORDER BY ym ASC
-    """, pr_params)
+    if exclude_gst:
+        cursor.execute(f"""
+            SELECT 
+                DATE_FORMAT(msc.date_of_transaction, '%%Y-%%m') as ym,
+                SUM(msc.price_without_gst) as return_ph
+            FROM medication_sales_credit msc
+            WHERE {pr_where_sql}
+            GROUP BY ym
+            ORDER BY ym ASC
+        """, pr_params)
+    else:
+        cursor.execute(f"""
+            SELECT 
+                DATE_FORMAT(msc.date_of_transaction, '%%Y-%%m') as ym,
+                SUM(msc.payment_cash + msc.payment_upi + msc.payment_cheque + msc.payment_neft) as return_ph
+            FROM medication_sales_credit msc
+            WHERE {pr_where_sql}
+            GROUP BY ym
+            ORDER BY ym ASC
+        """, pr_params)
     pr_monthly = {r[0]: float(r[1] or 0) for r in cursor.fetchall()}
 
     all_months = sorted(list(set(list(hc_monthly.keys()) + list(ph_monthly.keys()) + list(pr_monthly.keys()))))
@@ -1009,6 +1047,7 @@ def collection_analytics_api(request):
     branches = [{"id": b[0], "name": b[1]} for b in all_branch_rows]
 
     # Branch aggregations
+    branch_pr_expr = "SUM(msc.price_without_gst)" if exclude_gst else "SUM(payment_cash + payment_upi + payment_cheque + payment_neft)"
     branch_stats_sql = f"""
         SELECT 
             b.id,
@@ -1027,15 +1066,16 @@ def collection_analytics_api(request):
             GROUP BY branch_id
         ) hc ON hc.branch_id = b.id
         LEFT JOIN (
-            SELECT branch_id,
-                   SUM(payment_cash + payment_upi + payment_cheque + payment_neft) as gross_ph
+            SELECT mph.branch_id,
+                   SUM((mph.payment_cash + mph.payment_upi + mph.payment_cheque + mph.payment_neft) * ({ph_factor})) as gross_ph
             FROM medication_payment_history mph
+            LEFT JOIN medication_patients_invoices mpi ON mph.medication_patients_invoice_id = mpi.id
             WHERE {ph_where_sql}
-            GROUP BY branch_id
+            GROUP BY mph.branch_id
         ) ph ON ph.branch_id = b.id
         LEFT JOIN (
             SELECT branch_id,
-                   SUM(payment_cash + payment_upi + payment_cheque + payment_neft) as return_ph
+                   {branch_pr_expr} as return_ph
             FROM medication_sales_credit msc
             WHERE {pr_where_sql}
             GROUP BY branch_id
@@ -1161,6 +1201,7 @@ def collection_analytics_api(request):
 
     return JsonResponse({
         "status": "success",
+        "exclude_gst": 1 if exclude_gst else 0,
         "summary": {
             "net_collection": net_collection,
             "total_collection": total_gross_collection,
@@ -1196,7 +1237,8 @@ def collection_analytics_api(request):
             "start_date": start_date,
             "end_date": end_date,
             "branch_id": branch_id,
-            "source": source_filter
+            "source": source_filter,
+            "exclude_gst": 1 if exclude_gst else 0
         }
     })
 

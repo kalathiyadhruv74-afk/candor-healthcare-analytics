@@ -637,6 +637,61 @@
             color: var(--text-muted);
         }
 
+        /* Executive Full-Screen Loading Screen */
+        .global-loader {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(6px);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .global-loader.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .loader-card {
+            background: #FFFFFF;
+            padding: 28px 36px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.3), 0 0 0 1px rgba(2, 132, 199, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            max-width: 380px;
+            text-align: center;
+        }
+
+        .spinner-large {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #E0F2FE;
+            border-top-color: #0284C7;
+            border-radius: 50%;
+            animation: spin 0.75s linear infinite;
+        }
+
+        .loader-text {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0F172A;
+        }
+
+        .loader-subtext {
+            font-size: 0.82rem;
+            color: #64748B;
+        }
+
         .spinner {
             width: 36px;
             height: 36px;
@@ -676,9 +731,17 @@
                 padding-bottom: 6px;
             }
         }
-    </style>
 </head>
 <body>
+
+    <!-- Global Screen Loader -->
+    <div id="globalLoader" class="global-loader">
+        <div class="loader-card">
+            <div class="spinner-large"></div>
+            <div class="loader-text">Loading Live Financial Data...</div>
+            <div class="loader-subtext">Fetching real-time collection metrics &amp; transactions from hospital database</div>
+        </div>
+    </div>
 
     <!-- Header Navigation -->
     <header class="top-navbar">
@@ -753,6 +816,13 @@
                         <option value="return">Payment Returns Only</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="filterGst">GST Calculation</label>
+                    <select id="filterGst" class="form-select" onchange="applyFilters()" style="font-weight: 700; color: #0284C7; border-color: #38BDF8;">
+                        <option value="1" selected>Without GST (Default)</option>
+                        <option value="0">With GST (Gross Total)</option>
+                    </select>
+                </div>
                 <button type="button" class="btn-filter" onclick="applyFilters()">Apply Filters</button>
                 <button type="button" class="btn-reset" onclick="resetFilters()">Reset</button>
             </div>
@@ -769,8 +839,8 @@
                 </div>
                 <div class="kpi-value" id="kpiGrossCollection">₹ --</div>
                 <div class="kpi-subtext">
-                    <span class="kpi-tag tag-blue">Combined Gross</span>
-                    <span>Healthcare + Pharmacy</span>
+                    <span class="kpi-tag tag-blue" id="kpiGrossGstBadge">Without GST</span>
+                    <span>Combined Gross Inflow</span>
                 </div>
             </div>
 
@@ -820,7 +890,7 @@
             <div>
                 <div class="hero-info-tag">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    Collection (Net Final In-Hand)
+                    Collection (Net Final In-Hand) <span id="heroGstBadge" style="margin-left: 6px; padding: 2px 7px; border-radius: 10px; background: rgba(56, 189, 248, 0.25); color: #E0F2FE; font-size: 0.68rem;">(Without GST)</span>
                 </div>
                 <div class="hero-value" id="kpiNetCollection">₹ --</div>
                 <div class="hero-sub">
@@ -974,17 +1044,31 @@
             return formatINR(num);
         }
 
+        function showLoader() {
+            const loader = document.getElementById('globalLoader');
+            if (loader) loader.classList.add('active');
+        }
+
+        function hideLoader() {
+            const loader = document.getElementById('globalLoader');
+            if (loader) loader.classList.remove('active');
+        }
+
         async function fetchCollectionData() {
+            showLoader();
+
             const startDate = document.getElementById('filterStartDate').value;
             const endDate = document.getElementById('filterEndDate').value;
             const branchId = document.getElementById('filterBranch').value;
             const source = document.getElementById('filterSource').value;
+            const excludeGst = document.getElementById('filterGst').value;
 
             const params = new URLSearchParams();
             if (startDate) params.set('start_date', startDate);
             if (endDate) params.set('end_date', endDate);
             if (branchId) params.set('branch_id', branchId);
             if (source) params.set('source', source);
+            params.set('exclude_gst', excludeGst);
 
             try {
                 const response = await fetch(`/api/collection-analytics/?${params.toString()}`);
@@ -997,6 +1081,8 @@
             } catch (err) {
                 console.error('Fetch error:', err);
                 alert('Could not connect to collection analytics API');
+            } finally {
+                hideLoader();
             }
         }
 
@@ -1014,6 +1100,17 @@
         function renderDashboard(data) {
             const s = data.summary;
             populateBranches(data.branches, data.filters.branch_id);
+
+            // Update GST labels and badges
+            const isExcludeGst = (data.exclude_gst === 1 || data.exclude_gst === '1' || data.filters.exclude_gst === 1);
+            const gstBadgeText = isExcludeGst ? '(Without GST)' : '(With GST)';
+            const kpiBadgeText = isExcludeGst ? 'Without GST' : 'With GST';
+
+            const heroBadge = document.getElementById('heroGstBadge');
+            if (heroBadge) heroBadge.textContent = gstBadgeText;
+
+            const kpiBadge = document.getElementById('kpiGrossGstBadge');
+            if (kpiBadge) kpiBadge.textContent = kpiBadgeText;
 
             // Animate 4 KPI cards
             animateValue('kpiGrossCollection', s.total_collection);

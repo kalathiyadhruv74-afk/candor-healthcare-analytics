@@ -717,13 +717,76 @@
             border-radius: 4px;
         }
 
-        @keyframes skeleton-loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+        /* Executive Full-Screen Loading Screen */
+        .global-loader {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(6px);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .global-loader.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .loader-card {
+            background: #FFFFFF;
+            padding: 28px 36px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.3), 0 0 0 1px rgba(2, 132, 199, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            max-width: 380px;
+            text-align: center;
+        }
+
+        .spinner-large {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #E0F2FE;
+            border-top-color: #0284C7;
+            border-radius: 50%;
+            animation: spin 0.75s linear infinite;
+        }
+
+        .loader-text {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0F172A;
+        }
+
+        .loader-subtext {
+            font-size: 0.82rem;
+            color: #64748B;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
+
+    <!-- Global Screen Loader -->
+    <div id="globalLoader" class="global-loader">
+        <div class="loader-card">
+            <div class="spinner-large"></div>
+            <div class="loader-text">Loading Live Pharmacy Analytics...</div>
+            <div class="loader-subtext">Fetching real-time medicine income &amp; invoice metrics from database</div>
+        </div>
+    </div>
 
     <!-- Header Navigation -->
     <header class="top-navbar">
@@ -1074,7 +1137,19 @@
             return "₹ " + Math.round(amount);
         }
 
+        function showLoader() {
+            const loader = document.getElementById('globalLoader');
+            if (loader) loader.classList.add('active');
+        }
+
+        function hideLoader() {
+            const loader = document.getElementById('globalLoader');
+            if (loader) loader.classList.remove('active');
+        }
+
         async function fetchPharmacyData() {
+            showLoader();
+
             const startDate = document.getElementById("filterStartDate").value;
             const endDate = document.getElementById("filterEndDate").value;
             const branchId = document.getElementById("filterBranch").value;
@@ -1101,6 +1176,8 @@
                 }
             } catch (err) {
                 console.error("Failed to fetch pharmacy analytics:", err);
+            } finally {
+                hideLoader();
             }
         }
 
