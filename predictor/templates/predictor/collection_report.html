@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Collection & Payment Return Report | Candor Healthcare AI</title>
+    <meta name="description" content="Executive Financial Audit: Total Collection, Total Healthcare Collection, Total Pharmacy Collection, and Payment Return breakdown across all Candor Healthcare branches.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+
+    <style>
+        :root {
+            /* Palette: High-End Executive Financial Theme */
+            --bg-page: #F8FAFC;
+            --bg-card: #FFFFFF;
+            --bg-card-subtle: #F1F5F9;
+            --primary: #0284C7;
+            --primary-dark: #0369A1;
+            --primary-light: #E0F2FE;
+            --sky-accent: #38BDF8;
+            
+            --emerald: #059669;
+            --emerald-bg: #ECFDF5;
+            --amber: #D97706;
+            --amber-bg: #FEF3C7;
+            --purple: #7C3AED;
+            --purple-bg: #F5F3FF;
+            --rose: #E11D48;
+            --rose-bg: #FFE4E6;
+            --indigo: #4F46E5;
+            --indigo-bg: #EEF2FF;
+            
+            --border: #E2E8F0;
+            --border-light: #EDF2F7;
+            --border-accent: rgba(2, 132, 199, 0.28);
+            
+            --text-main: #0F172A;
+            --text-secondary: #334155;
+            --text-muted: #64748B;
+            --text-faint: #94A3B8;
+            
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+            --shadow-elevated: 0 12px 28px -6px rgba(14, 116, 144, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-page);
+            background-image: 
+                radial-gradient(circle at 10% 0%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 10%, rgba(16, 185, 129, 0.07) 0%, transparent 35%),
+                radial-gradient(circle at 50% 60%, rgba(224, 242, 254, 0.45) 0%, transparent 55%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            line-height: 1.55;
+            padding-bottom: 80px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Navigation Bar */
+        .top-navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+        }
+
+        .navbar-content {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.15rem;
+            letter-spacing: -0.3px;
+        }
+
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 9px;
+            background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFFFFF;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+            font-size: 1.1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 6px;
+            background: #F1F5F9;
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .nav-tab {
+            padding: 8px 16px;
+            border-radius: 7px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            white-space: nowrap;
+        }
+
+        .nav-tab.active {
+            background: #0284C7;
+            color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+            border: 1px solid #0369A1;
+        }
+
+        .nav-tab.inactive {
+            color: var(--text-muted);
+            border: 1px solid transparent;
+        }
+
+        .nav-tab.inactive:hover {
+            background: rgba(2, 132, 199, 0.08);
+            color: #0284C7;
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 28px auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.85rem;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge-live {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--emerald-bg);
+            color: var(--emerald);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            border: 1px solid rgba(5, 150, 105, 0.25);
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+
+        .badge-pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--emerald);
+            box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.7);
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(5, 150, 105, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(5, 150, 105, 0); }
+        }
+
+        .page-subtitle {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            max-width: 900px;
+        }
+
+        /* Filter Panel */
+        .filter-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 18px 22px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .filter-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 170px;
+            flex: 1;
+        }
+
+        .filter-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .form-input, .form-select {
+            padding: 9px 12px;
+            border-radius: var(--radius-sm);
+            border: 1.5px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.88rem;
+            font-weight: 600;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+        }
+
+        .btn-filter {
+            background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+            color: #FFFFFF;
+            border: none;
+            padding: 9px 20px;
+            border-radius: var(--radius-sm);
+            font-weight: 700;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+            height: 40px;
+        }
+
+        .btn-filter:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+        }
+
+        .btn-reset {
+            background: #F1F5F9;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            padding: 9px 16px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            height: 40px;
+        }
+
+        .btn-reset:hover {
+            background: #E2E8F0;
+        }
+
+        /* 4 Main Executive Metric Banners */
+        .executive-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 22px;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-elevated);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .kpi-card.kpi-total::before { background: linear-gradient(90deg, #0284C7, #38BDF8); }
+        .kpi-card.kpi-healthcare::before { background: linear-gradient(90deg, #4F46E5, #818CF8); }
+        .kpi-card.kpi-pharmacy::before { background: linear-gradient(90deg, #059669, #34D399); }
+        .kpi-card.kpi-return::before { background: linear-gradient(90deg, #E11D48, #F43F5E); }
+
+        .kpi-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .kpi-title {
+            font-size: 0.82rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        .kpi-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .kpi-total .kpi-icon { background: #E0F2FE; color: #0284C7; }
+        .kpi-healthcare .kpi-icon { background: #EEF2FF; color: #4F46E5; }
+        .kpi-pharmacy .kpi-icon { background: #ECFDF5; color: #059669; }
+        .kpi-return .kpi-icon { background: #FFE4E6; color: #E11D48; }
+
+        .kpi-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.9rem;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+            margin-bottom: 8px;
+        }
+
+        .kpi-return .kpi-value {
+            color: #E11D48;
+        }
+
+        .kpi-subtext {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .kpi-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .tag-blue { background: #E0F2FE; color: #0369A1; }
+        .tag-indigo { background: #EEF2FF; color: #4338CA; }
+        .tag-emerald { background: #ECFDF5; color: #047857; }
+        .tag-rose { background: #FFE4E6; color: #BE123C; }
+
+        /* Hero Primary Summary Bar: Net Collection */
+        .hero-banner {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 55%, #0F2A4A 100%);
+            border-radius: var(--radius-lg);
+            padding: 28px 32px;
+            color: #FFFFFF;
+            margin-bottom: 28px;
+            box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.25);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hero-banner::after {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .hero-info-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #7DD3FC;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .hero-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.7rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            line-height: 1.1;
+            background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .hero-sub {
+            font-size: 0.9rem;
+            color: #94A3B8;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .hero-modes-pill {
+            display: flex;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(10px);
+            padding: 12px 18px;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .mode-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 0 10px;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mode-item:last-child {
+            border-right: none;
+        }
+
+        .mode-item-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            color: #94A3B8;
+            font-weight: 700;
+        }
+
+        .mode-item-val {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: #F8FAFC;
+        }
+
+        /* 2-Column Analytics Layout */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 22px;
+            margin-bottom: 28px;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 22px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .chart-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 320px;
+            width: 100%;
+        }
+
+        /* Data Tables */
+        .table-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 22px;
+            box-shadow: var(--shadow-card);
+            margin-bottom: 28px;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 14px;
+        }
+
+        table.candor-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.88rem;
+        }
+
+        table.candor-table th {
+            background: var(--bg-card-subtle);
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 14px;
+            border-bottom: 1.5px solid var(--border);
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        table.candor-table th.num, table.candor-table td.num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        table.candor-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-secondary);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        table.candor-table tbody tr:hover td {
+            background-color: rgba(2, 132, 199, 0.03);
+        }
+
+        .badge-source {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.74rem;
+            font-weight: 700;
+        }
+
+        .badge-source-healthcare { background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE; }
+        .badge-source-pharmacy { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+        .badge-source-return { background: #FFE4E6; color: #BE123C; border: 1px solid #FECDD3; font-weight: 800; }
+
+        .loading-overlay {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 220px;
+            flex-direction: column;
+            gap: 12px;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(2, 132, 199, 0.15);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 1024px) {
+            .executive-kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .executive-kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            .hero-value {
+                font-size: 2.1rem;
+            }
+            .hero-modes-pill {
+                flex-direction: column;
+                width: 100%;
+            }
+            .mode-item {
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                padding-bottom: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="top-navbar">
+        <div class="navbar-content">
+            <a href="/collection-report/" class="navbar-brand">
+                <div class="brand-icon">💼</div>
+                <span>Candor Healthcare <span style="font-weight: 400; color: #64748B;">AI Analytics</span></span>
+            </a>
+            <nav class="nav-links">
+                <a href="/iui/" class="nav-tab inactive">IUI Plan Predictor</a>
+                <a href="/ivf/" class="nav-tab inactive">IVF Plan Predictor</a>
+                <a href="/anc-journey/" class="nav-tab inactive">ANC &amp; Delivery Journey</a>
+                <a href="/opd-prediction/" class="nav-tab inactive">OPD Prediction &amp; Targets</a>
+                <a href="/ivf-booking/" class="nav-tab inactive">IVF Booking Report</a>
+                <a href="/pharmacy-report/" class="nav-tab inactive">Pharmacy Report</a>
+                <a href="/collection-report/" class="nav-tab active">Collection Report</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <h1 class="page-title">
+                        Hospital Collection &amp; Payment Return Report
+                        <span class="badge-live"><span class="badge-pulse"></span> Live Hospital DB</span>
+                    </h1>
+                    <p class="page-subtitle">
+                        Executive audit of <strong>Total Collection</strong>, <strong>Total Healthcare Collection</strong>, 
+                        <strong>Total Pharmacy Collection</strong>, and <strong>PAYMENT RETURN</strong> across all branches.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="fetchCollectionData()" class="btn-filter" style="margin: 0;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                        Refresh Live Data
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Panel -->
+        <div class="filter-panel">
+            <div class="filter-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                <span>Report Filters &amp; Dimensions</span>
+            </div>
+            <div class="filter-controls">
+                <div class="filter-group">
+                    <label class="filter-label" for="filterStartDate">From Date</label>
+                    <input type="date" id="filterStartDate" class="form-input" value="2026-01-01">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="filterEndDate">To Date</label>
+                    <input type="date" id="filterEndDate" class="form-input">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="filterBranch">Branch</label>
+                    <select id="filterBranch" class="form-select">
+                        <option value="">All Branches (Consolidated)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="filterSource">Collection Stream</label>
+                    <select id="filterSource" class="form-select">
+                        <option value="">All Streams (Healthcare + Pharmacy)</option>
+                        <option value="healthcare">Healthcare Only</option>
+                        <option value="pharmacy">Pharmacy Only</option>
+                        <option value="return">Payment Returns Only</option>
+                    </select>
+                </div>
+                <button type="button" class="btn-filter" onclick="applyFilters()">Apply Filters</button>
+                <button type="button" class="btn-reset" onclick="resetFilters()">Reset</button>
+            </div>
+        </div>
+
+        <!-- 4 REQUIRED EXECUTIVE CARDS -->
+        <section class="executive-kpi-grid">
+            
+            <!-- Card 1: Total Collection (Gross) -->
+            <div class="kpi-card kpi-total">
+                <div class="kpi-header">
+                    <span class="kpi-title">Total Collection (Gross)</span>
+                    <div class="kpi-icon">💰</div>
+                </div>
+                <div class="kpi-value" id="kpiGrossCollection">₹ --</div>
+                <div class="kpi-subtext">
+                    <span class="kpi-tag tag-blue">Combined Gross</span>
+                    <span>Healthcare + Pharmacy</span>
+                </div>
+            </div>
+
+            <!-- Card 2: Total Healthcare Collection -->
+            <div class="kpi-card kpi-healthcare">
+                <div class="kpi-header">
+                    <span class="kpi-title">Total Healthcare Collection</span>
+                    <div class="kpi-icon">🏥</div>
+                </div>
+                <div class="kpi-value" id="kpiHealthcareCollection">₹ --</div>
+                <div class="kpi-subtext">
+                    <span class="kpi-tag tag-indigo" id="kpiHealthcareShare">--%</span>
+                    <span id="kpiHealthcareCount">-- Deposits</span>
+                </div>
+            </div>
+
+            <!-- Card 3: Total Pharmacy Collection -->
+            <div class="kpi-card kpi-pharmacy">
+                <div class="kpi-header">
+                    <span class="kpi-title">Total Pharmacy Collection</span>
+                    <div class="kpi-icon">💊</div>
+                </div>
+                <div class="kpi-value" id="kpiPharmacyCollection">₹ --</div>
+                <div class="kpi-subtext">
+                    <span class="kpi-tag tag-emerald" id="kpiPharmacyShare">--%</span>
+                    <span id="kpiPharmacyCount">-- Invoices Paid</span>
+                </div>
+            </div>
+
+            <!-- Card 4: PAYMENT RETURN -->
+            <div class="kpi-card kpi-return">
+                <div class="kpi-header">
+                    <span class="kpi-title">PAYMENT RETURN</span>
+                    <div class="kpi-icon">↩️</div>
+                </div>
+                <div class="kpi-value" id="kpiPaymentReturn">₹ --</div>
+                <div class="kpi-subtext">
+                    <span class="kpi-tag tag-rose">Refunds &amp; Returns</span>
+                    <span id="kpiReturnBreakdown">HC: ₹-- | Pharm: ₹--</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Hero Primary Summary: Net Collection (Final In-Hand) -->
+        <section class="hero-banner">
+            <div>
+                <div class="hero-info-tag">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    Collection (Net Final In-Hand)
+                </div>
+                <div class="hero-value" id="kpiNetCollection">₹ --</div>
+                <div class="hero-sub">
+                    <span><strong>Total Gross:</strong> <span id="heroGrossVal" style="color: #BAE6FD;">₹ --</span></span>
+                    <span>•</span>
+                    <span><strong>Payment Return Deducted:</strong> <span id="heroReturnVal" style="color: #FDA4AF;">- ₹ --</span></span>
+                    <span>•</span>
+                    <span><strong>Total Transactions:</strong> <span id="heroTxnCount" style="color: #38BDF8;">--</span></span>
+                </div>
+            </div>
+            <div class="hero-modes-pill">
+                <div class="mode-item">
+                    <div class="mode-item-title">Net Cash</div>
+                    <div class="mode-item-val" id="modeCashVal">₹ --</div>
+                    <div style="font-size: 0.7rem; color: #94A3B8;" id="modeCashPct">--%</div>
+                </div>
+                <div class="mode-item">
+                    <div class="mode-item-title">Net UPI</div>
+                    <div class="mode-item-val" id="modeUpiVal" style="color: #38BDF8;">₹ --</div>
+                    <div style="font-size: 0.7rem; color: #94A3B8;" id="modeUpiPct">--%</div>
+                </div>
+                <div class="mode-item">
+                    <div class="mode-item-title">Net NEFT / RTGS</div>
+                    <div class="mode-item-val" id="modeNeftVal" style="color: #A78BFA;">₹ --</div>
+                    <div style="font-size: 0.7rem; color: #94A3B8;" id="modeNeftPct">--%</div>
+                </div>
+                <div class="mode-item">
+                    <div class="mode-item-title">Net Cheque</div>
+                    <div class="mode-item-val" id="modeChequeVal">₹ --</div>
+                    <div style="font-size: 0.7rem; color: #94A3B8;" id="modeChequePct">--%</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts Grid: Monthly Trends & Stream Distribution -->
+        <section class="analytics-grid">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">
+                        <span>📊</span> Monthly Collection vs Payment Return Trend
+                    </h3>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Monthly Inflow &amp; Outflow</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="monthlyTrendChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">
+                        <span>🍩</span> Collection Stream Share
+                    </h3>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">HC vs Pharmacy</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="streamShareChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Branch-Wise Financial Breakdown Table -->
+        <section class="table-section">
+            <div class="chart-header">
+                <div>
+                    <h3 class="chart-title">
+                        <span>🏢</span> Branch-Wise Collection &amp; Return Breakdown
+                    </h3>
+                    <p style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px;">
+                        Complete branch performance matrix showing Gross Collections, Payment Returns, and Final Net Collections.
+                    </p>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="candor-table" id="branchTable">
+                    <thead>
+                        <tr>
+                            <th>Branch Name</th>
+                            <th class="num">Total Healthcare</th>
+                            <th class="num">Total Pharmacy</th>
+                            <th class="num">Total Collection (Gross)</th>
+                            <th class="num" style="color: #E11D48;">PAYMENT RETURN</th>
+                            <th class="num" style="color: #0284C7;">Collection (Net)</th>
+                            <th class="num">% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="branchTableBody">
+                        <tr><td colspan="7" class="loading-overlay"><div class="spinner"></div><span>Loading branch data...</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Recent Transactions & Returns Ledger Table -->
+        <section class="table-section">
+            <div class="chart-header">
+                <div>
+                    <h3 class="chart-title">
+                        <span>📋</span> Recent Collection &amp; Return Transactions Ledger
+                    </h3>
+                    <p style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px;">
+                        Live chronological feed of indoor deposits, pharmacy collections, and payment return credit notes.
+                    </p>
+                </div>
+                <span id="ledgerCountBadge" class="kpi-tag tag-blue">-- Records</span>
+            </div>
+            <div class="table-responsive">
+                <table class="candor-table" id="ledgerTable">
+                    <thead>
+                        <tr>
+                            <th>Txn ID</th>
+                            <th>Date &amp; Time</th>
+                            <th>Stream</th>
+                            <th>Type</th>
+                            <th>Patient Code</th>
+                            <th>Patient Name</th>
+                            <th>Branch</th>
+                            <th>Mode</th>
+                            <th class="num">Amount (₹)</th>
+                            <th>Reference / Note</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledgerTableBody">
+                        <tr><td colspan="10" class="loading-overlay"><div class="spinner"></div><span>Loading transactions...</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        let monthlyChartInstance = null;
+        let streamChartInstance = null;
+
+        function formatINR(val) {
+            const num = Number(val) || 0;
+            return '₹ ' + num.toLocaleString('en-IN', {
+                maximumFractionDigits: 0,
+                minimumFractionDigits: 0
+            });
+        }
+
+        function formatINRCompact(val) {
+            const num = Number(val) || 0;
+            if (Math.abs(num) >= 10000000) {
+                return '₹ ' + (num / 10000000).toFixed(2) + ' Cr';
+            } else if (Math.abs(num) >= 100000) {
+                return '₹ ' + (num / 100000).toFixed(2) + ' L';
+            }
+            return formatINR(num);
+        }
+
+        async function fetchCollectionData() {
+            const startDate = document.getElementById('filterStartDate').value;
+            const endDate = document.getElementById('filterEndDate').value;
+            const branchId = document.getElementById('filterBranch').value;
+            const source = document.getElementById('filterSource').value;
+
+            const params = new URLSearchParams();
+            if (startDate) params.set('start_date', startDate);
+            if (endDate) params.set('end_date', endDate);
+            if (branchId) params.set('branch_id', branchId);
+            if (source) params.set('source', source);
+
+            try {
+                const response = await fetch(`/api/collection-analytics/?${params.toString()}`);
+                const data = await response.json();
+                if (data.status === 'success') {
+                    renderDashboard(data);
+                } else {
+                    alert('Error loading collection data: ' + (data.message || 'Unknown error'));
+                }
+            } catch (err) {
+                console.error('Fetch error:', err);
+                alert('Could not connect to collection analytics API');
+            }
+        }
+
+        function populateBranches(branches, selectedId) {
+            const select = document.getElementById('filterBranch');
+            const current = select.value || selectedId || '';
+            let html = '<option value="">All Branches (Consolidated)</option>';
+            branches.forEach(b => {
+                const isSel = (String(b.id) === String(current)) ? 'selected' : '';
+                html += `<option value="${b.id}" ${isSel}>${b.name}</option>`;
+            });
+            select.innerHTML = html;
+        }
+
+        function renderDashboard(data) {
+            const s = data.summary;
+            populateBranches(data.branches, data.filters.branch_id);
+
+            // Animate 4 KPI cards
+            animateValue('kpiGrossCollection', s.total_collection);
+            animateValue('kpiHealthcareCollection', s.total_healthcare_collection);
+            animateValue('kpiPharmacyCollection', s.total_pharmacy_collection);
+            animateValue('kpiPaymentReturn', s.payment_return);
+
+            // Hero banner net collection
+            animateValue('kpiNetCollection', s.net_collection);
+            document.getElementById('heroGrossVal').textContent = formatINR(s.total_collection);
+            document.getElementById('heroReturnVal').textContent = formatINR(s.payment_return);
+            document.getElementById('heroTxnCount').textContent = (s.transaction_counts.total_transactions || 0).toLocaleString('en-IN');
+
+            // Share badges
+            const gross = s.total_collection || 1;
+            const hcShare = ((s.total_healthcare_collection / gross) * 100).toFixed(1);
+            const phShare = ((s.total_pharmacy_collection / gross) * 100).toFixed(1);
+            document.getElementById('kpiHealthcareShare').textContent = `${hcShare}% of Gross`;
+            document.getElementById('kpiPharmacyShare').textContent = `${phShare}% of Gross`;
+            document.getElementById('kpiHealthcareCount').textContent = `${(s.transaction_counts.healthcare_credits || 0).toLocaleString('en-IN')} Deposits`;
+            document.getElementById('kpiPharmacyCount').textContent = `${(s.transaction_counts.pharmacy_payments || 0).toLocaleString('en-IN')} Invoices`;
+            document.getElementById('kpiReturnBreakdown').textContent = `HC: ${formatINR(s.healthcare_return)} | Pharm: ${formatINR(s.pharmacy_return)}`;
+
+            // Payment modes
+            const m = s.payment_modes;
+            document.getElementById('modeCashVal').textContent = formatINR(m.cash);
+            document.getElementById('modeCashPct').textContent = `${m.cash_pct}%`;
+            document.getElementById('modeUpiVal').textContent = formatINR(m.upi);
+            document.getElementById('modeUpiPct').textContent = `${m.upi_pct}%`;
+            document.getElementById('modeNeftVal').textContent = formatINR(m.neft);
+            document.getElementById('modeNeftPct').textContent = `${m.neft_pct}%`;
+            document.getElementById('modeChequeVal').textContent = formatINR(m.cheque);
+            document.getElementById('modeChequePct').textContent = `${m.cheque_pct}%`;
+
+            // Render Charts
+            renderMonthlyChart(data.monthly_trend);
+            renderStreamChart(s.total_healthcare_collection, s.total_pharmacy_collection, s.payment_return);
+
+            // Render Tables
+            renderBranchTable(data.branch_breakdown, s);
+            renderLedgerTable(data.records);
+        }
+
+        function animateValue(elemId, targetVal) {
+            const elem = document.getElementById(elemId);
+            const num = Number(targetVal) || 0;
+            gsap.to({ val: 0 }, {
+                val: num,
+                duration: 0.8,
+                ease: "power2.out",
+                onUpdate: function () {
+                    elem.textContent = formatINR(this.targets()[0].val);
+                }
+            });
+        }
+
+        function renderMonthlyChart(monthlyTrend) {
+            const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
+            if (monthlyChartInstance) monthlyChartInstance.destroy();
+
+            const labels = monthlyTrend.map(d => d.month);
+            const netCols = monthlyTrend.map(d => d.net_collection);
+            const hcCols = monthlyTrend.map(d => d.healthcare_collection);
+            const phCols = monthlyTrend.map(d => d.pharmacy_collection);
+            const returns = monthlyTrend.map(d => d.payment_return);
+
+            monthlyChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Healthcare Collection',
+                            data: hcCols,
+                            backgroundColor: '#4F46E5',
+                            borderRadius: 4,
+                            stack: 'collections'
+                        },
+                        {
+                            label: 'Pharmacy Collection',
+                            data: phCols,
+                            backgroundColor: '#059669',
+                            borderRadius: 4,
+                            stack: 'collections'
+                        },
+                        {
+                            label: 'PAYMENT RETURN',
+                            data: returns,
+                            backgroundColor: '#E11D48',
+                            borderRadius: 4,
+                            stack: 'returns'
+                        },
+                        {
+                            label: 'Net Collection',
+                            data: netCols,
+                            type: 'line',
+                            borderColor: '#0284C7',
+                            backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                            borderWidth: 2.5,
+                            tension: 0.25,
+                            fill: false,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#0284C7'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: { family: "'Plus Jakarta Sans', sans-serif", weight: '600', size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + formatINR(context.raw);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false }
+                        },
+                        y: {
+                            ticks: {
+                                callback: val => formatINRCompact(val)
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderStreamChart(hc, ph, ret) {
+            const ctx = document.getElementById('streamShareChart').getContext('2d');
+            if (streamChartInstance) streamChartInstance.destroy();
+
+            streamChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Healthcare Collection', 'Pharmacy Collection', 'PAYMENT RETURN'],
+                    datasets: [{
+                        data: [hc, ph, ret],
+                        backgroundColor: ['#4F46E5', '#059669', '#E11D48'],
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { family: "'Plus Jakarta Sans', sans-serif", weight: '600', size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw || 0;
+                                    return context.label + ': ' + formatINR(val);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderBranchTable(branchRows, summary) {
+            const tbody = document.getElementById('branchTableBody');
+            if (!branchRows || branchRows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">No branch transactions found for the selected dates.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            branchRows.forEach(b => {
+                html += `
+                    <tr>
+                        <td><strong>${b.branch_name}</strong></td>
+                        <td class="num">${formatINR(b.healthcare_collection)}</td>
+                        <td class="num">${formatINR(b.pharmacy_collection)}</td>
+                        <td class="num"><strong>${formatINR(b.total_collection)}</strong></td>
+                        <td class="num" style="color: #E11D48; font-weight: 700;">${b.payment_return > 0 ? '- ' + formatINR(b.payment_return) : '₹ 0'}</td>
+                        <td class="num" style="color: #0284C7; font-weight: 800; font-size: 0.95rem;">${formatINR(b.net_collection)}</td>
+                        <td class="num"><span class="kpi-tag tag-blue">${b.pct_of_total}%</span></td>
+                    </tr>
+                `;
+            });
+
+            // Summary Totals Row
+            html += `
+                <tr style="background: var(--bg-card-subtle); font-weight: 800;">
+                    <td>TOTAL (CONSOLIDATED)</td>
+                    <td class="num">${formatINR(summary.total_healthcare_collection)}</td>
+                    <td class="num">${formatINR(summary.total_pharmacy_collection)}</td>
+                    <td class="num">${formatINR(summary.total_collection)}</td>
+                    <td class="num" style="color: #E11D48;">${summary.payment_return > 0 ? '- ' + formatINR(summary.payment_return) : '₹ 0'}</td>
+                    <td class="num" style="color: #0284C7; font-size: 1rem;">${formatINR(summary.net_collection)}</td>
+                    <td class="num"><span class="kpi-tag tag-blue">100.0%</span></td>
+                </tr>
+            `;
+
+            tbody.innerHTML = html;
+        }
+
+        function renderLedgerTable(records) {
+            const tbody = document.getElementById('ledgerTableBody');
+            document.getElementById('ledgerCountBadge').textContent = `${records.length} Records`;
+            if (!records || records.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 24px;">No ledger transactions found.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            records.forEach(r => {
+                let badgeClass = 'badge-source-healthcare';
+                if (r.is_return) {
+                    badgeClass = 'badge-source-return';
+                } else if (r.source_type === 'pharmacy') {
+                    badgeClass = 'badge-source-pharmacy';
+                }
+
+                const sign = r.is_return ? '-' : '+';
+                const amtColor = r.is_return ? '#E11D48' : '#059669';
+
+                html += `
+                    <tr>
+                        <td style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;">${r.id}</td>
+                        <td>${r.date}</td>
+                        <td><span class="badge-source ${badgeClass}">${r.source}</span></td>
+                        <td><strong>${r.is_return ? 'RETURN / REFUND' : 'COLLECTION'}</strong></td>
+                        <td style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;">${r.patient_code}</td>
+                        <td>${r.patient_name}</td>
+                        <td>${r.branch_name}</td>
+                        <td>${r.payment_mode}</td>
+                        <td class="num" style="color: ${amtColor}; font-weight: 800;">
+                            ${sign} ${formatINR(r.amount)}
+                        </td>
+                        <td style="color: var(--text-muted); font-size: 0.8rem;">${r.reference}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function applyFilters() {
+            fetchCollectionData();
+        }
+
+        function resetFilters() {
+            document.getElementById('filterStartDate').value = '2026-01-01';
+            document.getElementById('filterEndDate').value = '';
+            document.getElementById('filterBranch').value = '';
+            document.getElementById('filterSource').value = '';
+            fetchCollectionData();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchCollectionData();
+        });
+    </script>
+</body>
+</html>

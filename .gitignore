@@ -1,0 +1,39 @@
+# Environment & Secrets
+.env
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+
+# Large SQL Dumps & Backups (CRITICAL: Do NOT push to GitHub/Vercel)
+*.sql
+*.sql.gz
+*.tar.gz
+*.zip
+candor_healthcare*.sql
+
+# Large ML models & CSVs exceeding GitHub 50MB-100MB limit
+*.joblib
+data/*.joblib
+data/*.csv
+data/candor_healthcare*.sql
+
+# Scratch scripts containing credentials
+predictor/inspect_*.py
+predictor/analyze_*.py
+predictor/test_payment_link.py
+
+# Static collection & media
+staticfiles/
+media/
+
+# Virtual Environments
+venv/
+env/
+.venv/
+
+# IDE / System
+.vscode/
+.idea/
+.DS_Store
+*.log

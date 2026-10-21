@@ -1,0 +1,98 @@
+{
+  "loss_by_source": {
+    "Direct Maternity": 314,
+    "IUI": 255,
+    "IVF": 508
+  },
+  "total_losses": 1077,
+  "breakdown": [
+    {
+      "category": "Ectopic Pregnancy",
+      "full_name": "Ectopic Pregnancy (Tubal/Extrauterine Implantation)",
+      "total": 402,
+      "ivf": 196,
+      "iui": 104,
+      "direct": 102,
+      "ivf_pct": 48.8,
+      "iui_pct": 25.9,
+      "direct_pct": 25.4
+    },
+    {
+      "category": "Missed Abortion",
+      "full_name": "Missed Abortion (Silent Embryonic Arrest)",
+      "total": 303,
+      "ivf": 151,
+      "iui": 72,
+      "direct": 80,
+      "ivf_pct": 49.8,
+      "iui_pct": 23.8,
+      "direct_pct": 26.4
+    },
+    {
+      "category": "Major Anomalies",
+      "full_name": "Major Congenital & Structural Anomalies",
+      "total": 287,
+      "ivf": 110,
+      "iui": 69,
+      "direct": 108,
+      "ivf_pct": 38.3,
+      "iui_pct": 24.0,
+      "direct_pct": 37.6
+    },
+    {
+      "category": "D&E / D&C Evacuation",
+      "full_name": "D&E / D&C Surgical Uterine Evacuation",
+      "total": 135,
+      "ivf": 76,
+      "iui": 27,
+      "direct": 32,
+      "ivf_pct": 56.3,
+      "iui_pct": 20.0,
+      "direct_pct": 23.7
+    },
+    {
+      "category": "Blighted Ovum",
+      "full_name": "Blighted Ovum (Anembryonic Sac)",
+      "total": 90,
+      "ivf": 51,
+      "iui": 19,
+      "direct": 20,
+      "ivf_pct": 56.7,
+      "iui_pct": 21.1,
+      "direct_pct": 22.2
+    },
+    {
+      "category": "Cardiac Absence",
+      "full_name": "Fetal Cardiac Cessation / Absence",
+      "total": 14,
+      "ivf": 8,
+      "iui": 4,
+      "direct": 2,
+      "ivf_pct": 57.1,
+      "iui_pct": 28.6,
+      "direct_pct": 14.3
+    },
+    {
+      "category": "Spontaneous Miscarriage",
+      "full_name": "Spontaneous Miscarriage",
+      "total": 10,
+      "ivf": 5,
+      "iui": 1,
+      "direct": 4,
+      "ivf_pct": 50.0,
+      "iui_pct": 10.0,
+      "direct_pct": 40.0
+    },
+    {
+      "category": "IUD / Stillbirth",
+      "full_name": "Intrauterine Fetal Demise (IUD / Stillbirth)",
+      "total": 4,
+      "ivf": 2,
+      "iui": 0,
+      "direct": 2,
+      "ivf_pct": 50.0,
+      "iui_pct": 0.0,
+      "direct_pct": 50.0
+    }
+  ]
+}

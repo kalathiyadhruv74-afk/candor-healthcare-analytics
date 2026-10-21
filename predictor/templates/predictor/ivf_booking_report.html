@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IVF Booking Analytics & Clinical Source Report | Candor Healthcare AI</title>
+    <meta name="description" content="Executive IVF Booking Dashboard: Total IVF Bookings with Source, New IVF Bookings, 2nd Pick-Up Bookings, and Lab Use Bookings with Live Filters.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+
+    <style>
+        :root {
+            /* Palette: Executive Healthcare Theme matching Candor suite */
+            --bg-page: #F8FAFC;
+            --bg-card: #FFFFFF;
+            --bg-card-subtle: #F1F5F9;
+            --primary: #0284C7;
+            --primary-dark: #0369A1;
+            --primary-light: #E0F2FE;
+            --sky-accent: #38BDF8;
+            --sky-deep: #0284C7;
+            
+            --emerald: #059669;
+            --emerald-bg: #ECFDF5;
+            --amber: #D97706;
+            --amber-bg: #FEF3C7;
+            --purple: #7C3AED;
+            --purple-bg: #F5F3FF;
+            --indigo: #4F46E5;
+            --rose: #E11D48;
+            --rose-bg: #FFE4E6;
+            
+            --border: #E2E8F0;
+            --border-light: #EDF2F7;
+            --border-accent: rgba(2, 132, 199, 0.28);
+            
+            --text-main: #0F172A;
+            --text-secondary: #334155;
+            --text-muted: #64748B;
+            --text-faint: #94A3B8;
+            
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+            --shadow-elevated: 0 12px 28px -6px rgba(14, 116, 144, 0.10), 0 4px 10px -2px rgba(15, 23, 42, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-page);
+            background-image: 
+                radial-gradient(circle at 10% 0%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.07) 0%, transparent 35%),
+                radial-gradient(circle at 50% 60%, rgba(224, 242, 254, 0.45) 0%, transparent 55%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            line-height: 1.55;
+            padding-bottom: 80px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Navigation Bar */
+        .top-navbar {
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+        }
+
+        .navbar-content {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .navbar-brand {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            color: #0F172A;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        .brand-icon {
+            width: 34px;
+            height: 34px;
+            background: linear-gradient(135deg, #0284C7 0%, #38BDF8 100%);
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFFFFF;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+            font-size: 1.1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 6px;
+            background: #F1F5F9;
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .nav-tab {
+            padding: 8px 16px;
+            border-radius: 7px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            white-space: nowrap;
+        }
+
+        .nav-tab.active {
+            background: #0284C7;
+            color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+            border: 1px solid #0369A1;
+        }
+
+        .nav-tab.inactive {
+            color: var(--text-muted);
+            border: 1px solid transparent;
+        }
+
+        .nav-tab.inactive:hover {
+            background: rgba(2, 132, 199, 0.08);
+            color: #0284C7;
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 28px auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            color: #0F172A;
+            letter-spacing: -0.6px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge-verified {
+            background: #ECFDF5;
+            color: #047857;
+            border: 1px solid #A7F3D0;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 30px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            box-shadow: 0 1px 4px rgba(5, 150, 105, 0.1);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .page-subtitle {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            max-width: 1100px;
+            line-height: 1.6;
+        }
+
+        /* Hero Banner & KPI Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            padding: 22px;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-elevated);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .kpi-card.blue::before { background: linear-gradient(90deg, #0284C7, #38BDF8); }
+        .kpi-card.green::before { background: linear-gradient(90deg, #059669, #34D399); }
+        .kpi-card.amber::before { background: linear-gradient(90deg, #D97706, #FBBF24); }
+        .kpi-card.purple::before { background: linear-gradient(90deg, #7C3AED, #A78BFA); }
+
+        .kpi-icon-wrap {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+        }
+
+        .kpi-card.blue .kpi-icon-wrap { background: #E0F2FE; color: #0284C7; }
+        .kpi-card.green .kpi-icon-wrap { background: #ECFDF5; color: #059669; }
+        .kpi-card.amber .kpi-icon-wrap { background: #FEF3C7; color: #D97706; }
+        .kpi-card.purple .kpi-icon-wrap { background: #F5F3FF; color: #7C3AED; }
+
+        .kpi-label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .kpi-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--text-main);
+            line-height: 1.1;
+        }
+
+        .kpi-sub {
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Filter Controls */
+        .filter-bar {
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .filter-item label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .filter-input, .filter-select {
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: #F8FAFC;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-main);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+            background: #FFFFFF;
+        }
+
+        .filter-btn {
+            background: var(--primary);
+            color: #FFFFFF;
+            padding: 9px 18px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+            height: 38px;
+            align-self: flex-end;
+        }
+
+        .filter-btn:hover {
+            background: var(--primary-dark);
+            box-shadow: 0 4px 10px rgba(2, 132, 199, 0.35);
+        }
+
+        .filter-reset-btn {
+            background: #F1F5F9;
+            color: var(--text-secondary);
+            padding: 9px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            height: 38px;
+            align-self: flex-end;
+        }
+
+        .filter-reset-btn:hover {
+            background: #E2E8F0;
+            color: var(--text-main);
+        }
+
+        /* Grid for Source Table & Charts */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 7fr 5fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-header {
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--border-light);
+            background: linear-gradient(180deg, #FFFFFF 0%, #FAFAFC 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-body {
+            padding: 20px;
+            flex: 1;
+        }
+
+        /* Table styles */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.85rem;
+        }
+
+        .custom-table th {
+            background: #F8FAFC;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.4px;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .custom-table td {
+            padding: 14px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-main);
+            font-weight: 500;
+            vertical-align: middle;
+        }
+
+        .custom-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .custom-table tr:hover td {
+            background: rgba(2, 132, 199, 0.02);
+        }
+
+        .source-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.78rem;
+            background: #F1F5F9;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .source-badge.doctor { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
+        .source-badge.patient { background: #ECFDF5; color: #047857; border-color: #A7F3D0; }
+        .source-badge.online { background: #F5F3FF; color: #6D28D9; border-color: #DDD6FE; }
+        .source-badge.lead { background: #FFFBEB; color: #B45309; border-color: #FDE68A; }
+        .source-badge.staff { background: #FDF2F8; color: #BE185D; border-color: #FBCFE8; }
+
+        .stat-chip {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.82rem;
+        }
+
+        .chip-total { background: #E0F2FE; color: #0369A1; }
+        .chip-new { background: #ECFDF5; color: #047857; }
+        .chip-pickup { background: #FEF3C7; color: #B45309; }
+        .chip-lab { background: #F5F3FF; color: #6D28D9; }
+
+        .progress-bar-wrap {
+            width: 100%;
+            background: #E2E8F0;
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0284C7, #38BDF8);
+            border-radius: 3px;
+        }
+
+        /* Detail Patient Table Card */
+        .patient-card {
+            margin-top: 24px;
+        }
+
+        .tag-pill {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 20px;
+        }
+
+        .tag-pill.yes { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+        .tag-pill.no { background: #F1F5F9; color: #64748B; border: 1px solid var(--border); }
+        .tag-pill.new { background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; }
+        .tag-pill.repeat { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+
+        /* Loader */
+        .loading-overlay {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            gap: 12px;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(2, 132, 199, 0.15);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation Bar -->
+    <header class="top-navbar">
+        <div class="navbar-content">
+            <a href="/ivf-booking/" class="navbar-brand">
+                <div class="brand-icon">🧬</div>
+                <span>Candor Healthcare <span style="font-weight: 400; color: #64748B;">AI Analytics</span></span>
+            </a>
+            <nav class="nav-links">
+                <a href="/iui/" class="nav-tab inactive">IUI Plan Predictor</a>
+                <a href="/ivf/" class="nav-tab inactive">IVF Plan Predictor</a>
+                <a href="/anc-journey/" class="nav-tab inactive">ANC &amp; Delivery Journey</a>
+                <a href="/opd-prediction/" class="nav-tab inactive">OPD Prediction &amp; Targets</a>
+                <a href="/ivf-booking/" class="nav-tab active">IVF Booking Report</a>
+                <a href="/pharmacy-report/" class="nav-tab inactive">Pharmacy Report</a>
+                <a href="/collection-report/" class="nav-tab inactive">Collection Report</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <h1 class="page-title">
+                        IVF Booking &amp; Clinical Source Analytics
+                        <span class="badge-verified">✓ Live EHR Database</span>
+                    </h1>
+                    <p class="page-subtitle">
+                        Comprehensive IVF booking intelligence: tracking total IVF bookings categorized by acquisition source, 
+                        breakdown of new IVF patients, 2nd pick-up / repeat bookings, and specialized lab use bookings.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <div class="filter-item">
+                    <label>From Date</label>
+                    <input type="date" id="startDateInput" class="filter-input">
+                </div>
+                <div class="filter-item">
+                    <label>To Date</label>
+                    <input type="date" id="endDateInput" class="filter-input">
+                </div>
+                <div class="filter-item">
+                    <label>Branch</label>
+                    <select id="branchSelect" class="filter-select">
+                        <option value="">All Branches (All Locations)</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>Source</label>
+                    <select id="sourceSelect" class="filter-select">
+                        <option value="">All Sources</option>
+                    </select>
+                </div>
+                <button type="button" id="applyFiltersBtn" class="filter-btn">
+                    <span>🔍</span> Apply Filters
+                </button>
+                <button type="button" id="resetFiltersBtn" class="filter-reset-btn">
+                    Reset
+                </button>
+            </div>
+            <div>
+                <span id="activeFilterSummary" style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted);">
+                    Showing all-time records
+                </span>
+            </div>
+        </div>
+
+        <!-- KPI Cards Grid (The 4 Requested Metrics) -->
+        <div class="kpi-grid">
+            <div class="kpi-card blue">
+                <div class="kpi-icon-wrap">📋</div>
+                <div class="kpi-label">Total IVF Bookings</div>
+                <div class="kpi-val" id="kpiTotalBookings">-</div>
+                <div class="kpi-sub">
+                    <span>With Acquisition Source Breakdown</span>
+                </div>
+            </div>
+
+            <div class="kpi-card green">
+                <div class="kpi-icon-wrap">🌱</div>
+                <div class="kpi-label">New IVF Bookings</div>
+                <div class="kpi-val" id="kpiNewBookings">-</div>
+                <div class="kpi-sub">
+                    <span id="kpiNewPct" style="font-weight: 700; color: #059669;">-</span>
+                    <span>of total bookings</span>
+                </div>
+            </div>
+
+            <div class="kpi-card amber">
+                <div class="kpi-icon-wrap">🔄</div>
+                <div class="kpi-label">2nd Pick-Up Bookings</div>
+                <div class="kpi-val" id="kpiSecondPickup">-</div>
+                <div class="kpi-sub">
+                    <span>2nd Cycle / Repeat OPU Procedures</span>
+                </div>
+            </div>
+
+            <div class="kpi-card purple">
+                <div class="kpi-icon-wrap">🔬</div>
+                <div class="kpi-label">Lab Use Bookings</div>
+                <div class="kpi-val" id="kpiLabUse">-</div>
+                <div class="kpi-sub">
+                    <span>External / Dedicated IVF Lab Charge</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Row: Source Breakdown Table + Chart -->
+        <div class="content-grid">
+            <!-- Source Breakdown Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <span>🌐</span> Acquisition Source Breakdown
+                    </h2>
+                    <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">
+                        Sorted by booking volume
+                    </span>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Source Name</th>
+                                    <th style="text-align: right;">Total Bookings</th>
+                                    <th style="text-align: right;">New IVF Bookings</th>
+                                    <th style="text-align: right;">2nd Pick-Up</th>
+                                    <th style="text-align: right;">Lab Use</th>
+                                    <th style="width: 140px;">New Patient Ratio</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sourceTableBody">
+                                <tr>
+                                    <td colspan="6">
+                                        <div class="loading-overlay">
+                                            <div class="spinner"></div>
+                                            <span>Loading IVF booking source data...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <span>📊</span> Source Distribution &amp; Share
+                    </h2>
+                </div>
+                <div class="card-body" style="display: flex; flex-direction: column; justify-content: center; min-height: 320px;">
+                    <canvas id="sourcePieChart" style="max-height: 280px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Trends Row -->
+        <div class="card" style="margin-bottom: 24px;">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <span>📈</span> Monthly IVF Booking Velocity &amp; Repeat Rate Trend
+                </h2>
+                <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">
+                    New IVF vs 2nd Pick-Up / Repeat Bookings Over Time
+                </span>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyTrendChart" style="max-height: 280px; width: 100%;"></canvas>
+            </div>
+        </div>
+
+        <!-- Detailed Patients Booking Log -->
+        <div class="card patient-card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <span>📑</span> Patient-Level IVF Booking Records
+                </h2>
+                <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);" id="recordCountBadge">
+                    Showing latest 300 records
+                </div>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div class="table-responsive">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Booking Date</th>
+                                <th>Patient Name</th>
+                                <th>MRN / Code</th>
+                                <th>Branch</th>
+                                <th>Acquisition Source</th>
+                                <th>Cycle Type</th>
+                                <th>Category</th>
+                                <th>2nd Pick-Up</th>
+                                <th>Lab Use</th>
+                                <th style="text-align: right;">Package (₹)</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patientTableBody">
+                            <tr>
+                                <td colspan="11">
+                                    <div class="loading-overlay">
+                                        <div class="spinner"></div>
+                                        <span>Loading patient booking details...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        let sourcePieChartInstance = null;
+        let monthlyTrendChartInstance = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchReportData();
+
+            document.getElementById('applyFiltersBtn').addEventListener('click', () => {
+                fetchReportData();
+            });
+
+            document.getElementById('resetFiltersBtn').addEventListener('click', () => {
+                document.getElementById('startDateInput').value = '';
+                document.getElementById('endDateInput').value = '';
+                document.getElementById('branchSelect').value = '';
+                document.getElementById('sourceSelect').value = '';
+                fetchReportData();
+            });
+        });
+
+        async function fetchReportData() {
+            const start = document.getElementById('startDateInput').value;
+            const end = document.getElementById('endDateInput').value;
+            const branch = document.getElementById('branchSelect').value;
+            const source = document.getElementById('sourceSelect').value;
+
+            const params = new URLSearchParams();
+            if (start) params.append('start_date', start);
+            if (end) params.append('end_date', end);
+            if (branch) params.append('branch_id', branch);
+            if (source) params.append('source', source);
+
+            updateActiveFilterText(start, end, branch, source);
+
+            try {
+                const res = await fetch(`/api/ivf-booking-analytics/?${params.toString()}`);
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    renderSummary(data.summary);
+                    renderSourceTable(data.by_source);
+                    renderSourceChart(data.by_source);
+                    renderMonthlyTrendChart(data.monthly_trend);
+                    renderPatientRecords(data.records);
+                    populateBranches(data.branches, branch);
+                    populateSources(data.by_source, source);
+                } else {
+                    alert('Error loading data: ' + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function updateActiveFilterText(start, end, branch, source) {
+            const parts = [];
+            if (start && end) parts.push(`${start} to ${end}`);
+            else if (start) parts.push(`From ${start}`);
+            else if (end) parts.push(`Up to ${end}`);
+
+            if (branch) {
+                const sel = document.getElementById('branchSelect');
+                const branchName = sel.options[sel.selectedIndex]?.text || `Branch ${branch}`;
+                parts.push(branchName);
+            }
+            if (source) parts.push(`Source: ${source}`);
+
+            const text = parts.length > 0 ? `Active Filters: ${parts.join(' | ')}` : 'Showing all-time records';
+            document.getElementById('activeFilterSummary').textContent = text;
+        }
+
+        function renderSummary(summary) {
+            document.getElementById('kpiTotalBookings').textContent = Number(summary.total_all_bookings).toLocaleString();
+            document.getElementById('kpiNewBookings').textContent = Number(summary.total_new_ivf).toLocaleString();
+            document.getElementById('kpiNewPct').textContent = `${summary.new_ivf_percentage}%`;
+            document.getElementById('kpiSecondPickup').textContent = Number(summary.total_second_pickup).toLocaleString();
+            document.getElementById('kpiLabUse').textContent = Number(summary.total_lab_use).toLocaleString();
+        }
+
+        function renderSourceTable(bySource) {
+            const tbody = document.getElementById('sourceTableBody');
+            if (!bySource || bySource.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No IVF booking records found matching current filters.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            bySource.forEach(item => {
+                const badgeClass = getSourceBadgeClass(item.source);
+                html += `
+                    <tr>
+                        <td>
+                            <span class="source-badge ${badgeClass}">${escapeHtml(item.source)}</span>
+                        </td>
+                        <td style="text-align: right;">
+                            <span class="stat-chip chip-total">${Number(item.total_bookings).toLocaleString()}</span>
+                        </td>
+                        <td style="text-align: right;">
+                            <span class="stat-chip chip-new">${Number(item.new_ivf_bookings).toLocaleString()}</span>
+                        </td>
+                        <td style="text-align: right;">
+                            <span class="stat-chip chip-pickup">${Number(item.second_pickup_bookings).toLocaleString()}</span>
+                        </td>
+                        <td style="text-align: right;">
+                            <span class="stat-chip chip-lab">${Number(item.lab_use_bookings).toLocaleString()}</span>
+                        </td>
+                        <td>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);">
+                                <span>${item.new_percentage}%</span>
+                                <span style="color: var(--text-muted);">${item.new_ivf_bookings}/${item.total_bookings}</span>
+                            </div>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar-fill" style="width: ${Math.min(item.new_percentage, 100)}%;"></div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        function getSourceBadgeClass(source) {
+            const s = (source || '').toLowerCase();
+            if (s.includes('doctor')) return 'doctor';
+            if (s.includes('patient')) return 'patient';
+            if (s.includes('online')) return 'online';
+            if (s.includes('lead')) return 'lead';
+            if (s.includes('staff')) return 'staff';
+            return '';
+        }
+
+        function renderSourceChart(bySource) {
+            const ctx = document.getElementById('sourcePieChart').getContext('2d');
+            if (sourcePieChartInstance) {
+                sourcePieChartInstance.destroy();
+            }
+
+            if (!bySource || bySource.length === 0) return;
+
+            const labels = bySource.map(i => i.source);
+            const dataVals = bySource.map(i => i.total_bookings);
+            const palette = [
+                '#0284C7', '#059669', '#7C3AED', '#D97706', '#E11D48',
+                '#0891B2', '#4F46E5', '#10B981', '#F59E0B', '#64748B'
+            ];
+
+            sourcePieChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataVals,
+                        backgroundColor: palette.slice(0, labels.length),
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 12,
+                                font: {
+                                    family: "'Plus Jakarta Sans', sans-serif",
+                                    size: 11,
+                                    weight: 600
+                                },
+                                padding: 12
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const val = context.parsed;
+                                    const pct = ((val / total) * 100).toFixed(1);
+                                    return ` ${context.label}: ${val.toLocaleString()} (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        function renderMonthlyTrendChart(trend) {
+            const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
+            if (monthlyTrendChartInstance) {
+                monthlyTrendChartInstance.destroy();
+            }
+
+            if (!trend || trend.length === 0) return;
+
+            // Display latest 18 months if long
+            const displayTrend = trend.slice(-18);
+            const labels = displayTrend.map(t => t.month);
+            const totalData = displayTrend.map(t => t.total_bookings);
+            const newData = displayTrend.map(t => t.new_ivf_bookings);
+            const secondPickupData = displayTrend.map(t => t.second_pickup_bookings);
+
+            monthlyTrendChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'New IVF Bookings',
+                            data: newData,
+                            backgroundColor: '#0284C7',
+                            borderRadius: 4
+                        },
+                        {
+                            label: '2nd Pick-Up / Repeat',
+                            data: secondPickupData,
+                            backgroundColor: '#F59E0B',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: { display: false },
+                            ticks: { font: { size: 10, weight: 600 } }
+                        },
+                        y: {
+                            stacked: true,
+                            grid: { color: '#F1F5F9' },
+                            ticks: { font: { size: 10 } }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: "'Plus Jakarta Sans', sans-serif",
+                                    size: 12,
+                                    weight: 600
+                                },
+                                boxWidth: 12
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderPatientRecords(records) {
+            const tbody = document.getElementById('patientTableBody');
+            const badge = document.getElementById('recordCountBadge');
+            if (!records || records.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No matching patient booking records found.</td></tr>';
+                badge.textContent = 'Showing 0 records';
+                return;
+            }
+
+            badge.textContent = `Showing ${records.length} records`;
+
+            let html = '';
+            records.forEach(r => {
+                const categoryClass = r.ivf_category === 'New IVF' ? 'new' : 'repeat';
+                const pickupClass = r.is_2nd_pickup === 'Yes' ? 'yes' : 'no';
+                const labClass = r.is_lab_use === 'Yes' ? 'yes' : 'no';
+                const sourceBadge = getSourceBadgeClass(r.source);
+
+                html += `
+                    <tr>
+                        <td style="white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 600;">
+                            ${escapeHtml(r.booking_date)}
+                        </td>
+                        <td style="font-weight: 700;">
+                            ${escapeHtml(r.patient_name)}
+                        </td>
+                        <td style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-muted);">
+                            ${escapeHtml(r.code)}
+                        </td>
+                        <td>${escapeHtml(r.branch_name)}</td>
+                        <td>
+                            <span class="source-badge ${sourceBadge}">${escapeHtml(r.source)}</span>
+                        </td>
+                        <td>
+                            <span style="font-weight: 700; color: #0284C7;">${escapeHtml(r.cycle_type)}</span>
+                            <span style="font-size: 0.72rem; color: var(--text-muted);">C${r.cycle_no}</span>
+                        </td>
+                        <td>
+                            <span class="tag-pill ${categoryClass}">${escapeHtml(r.ivf_category)}</span>
+                        </td>
+                        <td>
+                            <span class="tag-pill ${pickupClass}">${r.is_2nd_pickup}</span>
+                        </td>
+                        <td>
+                            <span class="tag-pill ${labClass}">${r.is_lab_use}</span>
+                        </td>
+                        <td style="text-align: right; font-weight: 700; font-family: 'JetBrains Mono', monospace;">
+                            ₹${r.package_amount.toLocaleString()}
+                        </td>
+                        <td style="font-size: 0.78rem; color: var(--text-muted); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(r.remark)}">
+                            ${escapeHtml(r.remark)}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        function populateBranches(branches, currentVal) {
+            const sel = document.getElementById('branchSelect');
+            if (sel.options.length > 1) return; // already populated
+
+            branches.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.id;
+                opt.textContent = b.name;
+                if (String(b.id) === String(currentVal)) {
+                    opt.selected = true;
+                }
+                sel.appendChild(opt);
+            });
+        }
+
+        function populateSources(bySource, currentVal) {
+            const sel = document.getElementById('sourceSelect');
+            if (sel.options.length > 1) return; // already populated
+
+            bySource.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.source;
+                opt.textContent = `${item.source} (${item.total_bookings})`;
+                if (item.source === currentVal) {
+                    opt.selected = true;
+                }
+                sel.appendChild(opt);
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

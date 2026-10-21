@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fertility to Antenatal Care (ANC) & Delivery Journey Analytics | Candor Healthcare</title>
+    <meta name="description" content="Comprehensive patient journey analysis: tracking patients from hospital admission, IUI/IVF treatment plans, ANC conversion in anc_history, through to delivery and live births.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+    
+    <style>
+        :root {
+            /* Palette: White, Off-white, and Sky Blue Executive Healthcare Theme */
+            --bg-page: #F8FAFC;
+            --bg-canvas: #F0F7FF;
+            --bg-card: #FFFFFF;
+            --bg-card-subtle: #F1F5F9;
+            --bg-surface: #FFFFFF;
+            
+            --primary: #0284C7;
+            --primary-dark: #0369A1;
+            --primary-light: #E0F2FE;
+            --sky-accent: #38BDF8;
+            
+            --success: #059669;
+            --success-light: #ECFDF5;
+            --purple: #7C3AED;
+            --purple-light: #F5F3FF;
+            --amber: #D97706;
+            --amber-light: #FEF3C7;
+            --rose: #E11D48;
+            --rose-light: #FFE4E6;
+            
+            --border: #E2E8F0;
+            --border-light: #EDF2F7;
+            --border-accent: rgba(2, 132, 199, 0.28);
+            
+            --text-main: #0F172A;
+            --text-secondary: #334155;
+            --text-muted: #64748B;
+            --text-faint: #94A3B8;
+            
+            --radius: 12px;
+            --shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-page);
+            background-image: 
+                radial-gradient(circle at 10% 0%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.07) 0%, transparent 35%),
+                radial-gradient(circle at 50% 60%, rgba(224, 242, 254, 0.45) 0%, transparent 55%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            line-height: 1.55;
+            padding-bottom: 60px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .top-navbar {
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+        }
+
+        .navbar-content {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .navbar-brand {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            color: #0F172A;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 6px;
+            background: #F1F5F9;
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .nav-tab {
+            padding: 8px 16px;
+            border-radius: 7px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            white-space: nowrap;
+        }
+
+        .nav-tab.active {
+            background: #0284C7;
+            color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+            border: 1px solid #0369A1;
+        }
+
+        .nav-tab.inactive {
+            color: var(--text-muted);
+            border: 1px solid transparent;
+        }
+
+        .nav-tab.inactive:hover {
+            background: rgba(2, 132, 199, 0.08);
+            color: #0284C7;
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 28px auto;
+            padding: 0 24px;
+        }
+
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            color: #0F172A;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge-verified {
+            background: #ECFDF5;
+            color: #047857;
+            border: 1px solid #A7F3D0;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .page-subtitle {
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            max-width: 1050px;
+            line-height: 1.6;
+        }
+
+        /* Hero Funnel Progress */
+        .funnel-hero {
+            background: linear-gradient(135deg, #FFFFFF 0%, #F0F9FF 100%);
+            border: 1px solid #BAE6FD;
+            border-radius: var(--radius);
+            color: #0F172A;
+            padding: 26px 30px;
+            margin-bottom: 26px;
+            box-shadow: var(--shadow);
+        }
+
+        .funnel-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #0F172A;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .funnel-subtitle {
+            font-size: 0.84rem;
+            color: var(--text-secondary);
+            margin-bottom: 22px;
+        }
+
+        .funnel-steps {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            position: relative;
+        }
+
+        @media (max-width: 900px) {
+            .funnel-steps {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .funnel-card {
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+        }
+
+        .funnel-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .funnel-step-tag {
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .funnel-number {
+            font-size: 2.1rem;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 4px;
+            color: #0F172A;
+        }
+
+        .funnel-label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .funnel-desc {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .funnel-badge {
+            margin-top: 10px;
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        /* 2-Column Comparison Layout */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+            margin-bottom: 26px;
+        }
+
+        @media (max-width: 960px) {
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            border-bottom: 1px solid var(--border-light);
+            padding-bottom: 14px;
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.18rem;
+            font-weight: 800;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tag-pill {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .stat-banner {
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .journey-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.84rem;
+            text-align: left;
+            min-width: 650px;
+        }
+
+        .journey-table th {
+            background: #F8FAFC;
+            color: #334155;
+            font-weight: 700;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            text-transform: uppercase;
+            font-size: 0.74rem;
+            letter-spacing: 0.5px;
+        }
+
+        .journey-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-main);
+            vertical-align: middle;
+        }
+
+        .journey-table tr:hover {
+            background-color: #F0F9FF;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            background-color: #E2E8F0;
+            border-radius: 10px;
+            height: 7px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+        }
+
+        .callout-box {
+            background: #F0F9FF;
+            border: 1px solid #BAE6FD;
+            border-radius: 8px;
+            padding: 14px 18px;
+            font-size: 0.84rem;
+            color: #0369A1;
+            margin-top: 16px;
+            line-height: 1.55;
+        }
+
+        /* Pregnancy Outcomes & Baby Arrival Dashboard Styles */
+        .outcomes-section {
+            margin-top: 24px;
+        }
+
+        .outcome-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .outcome-kpi-card {
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .outcome-kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(2, 132, 199, 0.12);
+            border-color: #38BDF8;
+        }
+
+        .outcome-kpi-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .outcome-kpi-card.success-card::before {
+            background: #059669;
+        }
+
+        .outcome-kpi-card.danger-card::before {
+            background: #DC2626;
+        }
+
+        .outcome-kpi-card.warning-card::before {
+            background: #D97706;
+        }
+
+        .outcome-kpi-title {
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .outcome-kpi-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 4px;
+            color: #0F172A;
+        }
+
+        .outcome-kpi-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .reason-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            .navbar-content {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 12px 16px;
+            }
+            .nav-links {
+                width: 100%;
+                justify-content: flex-start;
+            }
+            .container {
+                padding: 0 14px;
+                margin: 16px auto;
+            }
+            .page-title {
+                font-size: 1.5rem;
+            }
+            .card {
+                padding: 16px;
+            }
+            .funnel-hero {
+                padding: 18px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation -->
+    <header class="top-navbar">
+        <div class="navbar-content">
+            <a href="/ivf/" class="navbar-brand">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Candor Healthcare AI
+            </a>
+            <nav class="nav-links">
+                <a href="/iui/" class="nav-tab inactive">IUI Plan Predictor</a>
+                <a href="/ivf/" class="nav-tab inactive">IVF Plan Predictor</a>
+                <a href="/anc-journey/" class="nav-tab active">ANC &amp; Delivery Journey</a>
+                <a href="/opd-prediction/" class="nav-tab inactive">OPD Prediction &amp; Targets</a>
+                <a href="/ivf-booking/" class="nav-tab inactive">IVF Booking Report</a>
+                <a href="/pharmacy-report/" class="nav-tab inactive">Pharmacy Report</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <h1 class="page-title">
+                        Complete Patient Journey: Hospital Inflow ➔ IUI/IVF Plans ➔ ANC History ➔ Delivery
+                        <span class="badge-verified">✓ 58,882 ANC History Visits Analyzed</span>
+                    </h1>
+                    <p class="page-subtitle">
+                        End-to-end clinical progression tracking from Candor Hospital databases: Measuring exactly how many patients arrived, which fertility plans drove successful conception, how many converted to Antenatal Care (<code>anc</code> &amp; <code>anc_history</code>), and how many delivered babies.
+                    </p>
+                </div>
+            </div>
+                <!-- Funnel Hero Banner -->
+        <section class="funnel-hero">
+            <div class="funnel-title">
+                <span>🏥 Candor Hospital-Wide Fertility-to-Motherhood Progression Funnel</span>
+            </div>
+            <div class="funnel-subtitle">
+                Correlated cross-table analytics linking Master Inflow (<code>ivf</code>: ~8,113 records / <code>iui</code>: ~12,303 records), <code>iui_history</code> (51k), <code>ivf_history</code> (73.5k), and <code>anc_history</code> (58,882 visits across 8,051 ANC patients).
+            </div>
+
+            <div class="funnel-steps">
+                <!-- Step 1 -->
+                <div class="funnel-card">
+                    <div>
+                        <div class="funnel-card-header">
+                            <span class="funnel-step-tag" style="background:#3B82F6; color:#FFFFFF;">Stage 1: Hospital Intake</span>
+                            <span style="font-size:1.2rem;">👥</span>
+                        </div>
+                        <div class="funnel-number" style="color:#60A5FA;">20,416</div>
+                        <div class="funnel-label">Total Fertility Patients Admitted</div>
+                        <div class="funnel-desc">~8,113 IVF Patients (7,930 unique IDs) + ~12,303 IUI Patients (11,911 unique IDs).</div>
+                    </div>
+                    <div>
+                        <span class="funnel-badge" style="background:rgba(59,130,246,0.2); color:#93C5FD;">100% Hospital Cohort</span>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="funnel-card">
+                    <div>
+                        <div class="funnel-card-header">
+                            <span class="funnel-step-tag" style="background:#8B5CF6; color:#FFFFFF;">Stage 2: Treatment Cycles</span>
+                            <span style="font-size:1.2rem;">💊</span>
+                        </div>
+                        <div class="funnel-number" style="color:#A78BFA;">124,591</div>
+                        <div class="funnel-label">Follicular Visits &amp; Cycles</div>
+                        <div class="funnel-desc">73,515 IVF multi-visit records + 51,076 IUI stimulation cycles across 28 distinct protocols.</div>
+                    </div>
+                    <div>
+                        <span class="funnel-badge" style="background:rgba(139,92,246,0.2); color:#C4B5FD;">Multi-Visit Protocols</span>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="funnel-card">
+                    <div>
+                        <div class="funnel-card-header">
+                            <span class="funnel-step-tag" style="background:#10B981; color:#FFFFFF;">Stage 3: Total ANC Patients</span>
+                            <span style="font-size:1.2rem;">🤰</span>
+                        </div>
+                        <div class="funnel-number" style="color:#34D399;">8,051</div>
+                        <div class="funnel-label">Total Unique ANC Patients Registered</div>
+                        <div class="funnel-desc">
+                            <strong>8,051 total unique pregnant mothers</strong> admitted to Antenatal Care (<code>anc</code> table). Out of these, <strong>6,475 mothers</strong> completed detailed multi-visit ultrasound &amp; lab follow-ups (58,882 visits in <code>anc_history</code>).
+                        </div>
+                    </div>
+                    <div>
+                        <span class="funnel-badge" style="background:rgba(16,185,129,0.2); color:#6EE7B7;">5,624 from Fertility (IVF/IUI) + 2,427 Direct Maternity</span>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="funnel-card">
+                    <div>
+                        <div class="funnel-card-header">
+                            <span class="funnel-step-tag" style="background:#F59E0B; color:#FFFFFF;">Stage 4: Birth &amp; Delivery</span>
+                            <span style="font-size:1.2rem;">👶</span>
+                        </div>
+                        <div class="funnel-number" style="color:#FBBF24;">2,492</div>
+                        <div class="funnel-label">Confirmed Deliveries / Live Births</div>
+                        <div class="funnel-desc">Documented with LSCS / FTND term deliveries at 37–40 weeks in <code>anc_history</code>.</div>
+                    </div>
+                    <div>
+                        <span class="funnel-badge" style="background:rgba(245,158,11,0.2); color:#FCD34D;">38.5% Documented Live Births</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ANTENATAL PREGNANCY OUTCOMES: BABY ARRIVED VS. BABY NOT ARRIVED & LOSS REASONS -->
+        <section class="outcomes-section">
+            <div class="card" style="border: 2px solid #E2E8F0; box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);">
+                <div class="card-header" style="border-bottom: 2px solid #F1F5F9; padding-bottom: 16px;">
+                    <div>
+                        <div class="card-title" style="font-size: 1.25rem;">
+                            <span style="background: #FEF3C7; color: #D97706; width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.15rem;">👶</span>
+                            <span>ANC Pregnancy Outcomes: Baby Arrived (Live Births) vs. Pregnancy Losses &amp; Clinical Causes</span>
+                        </div>
+                        <p style="font-size: 0.84rem; color: #64748B; margin-top: 4px;">
+                            Complete accounting of all <strong>8,051 registered ANC mothers</strong>: <strong>6,475 mothers</strong> followed across <strong>58,882 visits</strong> in <code>anc_history</code> with full ultrasound &amp; delivery logging, plus <strong>1,576 initial consultation mothers</strong> registered in <code>anc</code>.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <span class="tag-pill" style="background: #EFF6FF; color: #1D4ED8; font-size: 0.8rem; padding: 6px 12px; font-weight: 700;">
+                            👥 Total 8,051 Registered Mothers
+                        </span>
+                        <span class="tag-pill" style="background: #F1F5F9; color: #334155; font-size: 0.8rem; padding: 6px 12px;">
+                            🔬 58,882 Clinical Visits Analyzed
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 4 KPI Outcome Cards Accounting for the Complete 8,051 Cohort -->
+                <div class="outcome-cards-grid" style="margin-top: 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+                    <!-- Card 1: Baby Arrived / Live Birth -->
+                    <div class="outcome-kpi-card success-card" style="background: #F0FDF4; border-color: #BBF7D0;">
+                        <div class="outcome-kpi-title" style="color: #166534;">
+                            <span>✅ Baby Arrived (Live Birth)</span>
+                            <span style="font-size: 1.25rem;">👶</span>
+                        </div>
+                        <div class="outcome-kpi-val" style="color: #15803D;">2,492</div>
+                        <div class="outcome-kpi-sub">
+                            <strong style="color: #166534; font-size: 0.92rem;">38.5% of Followed Mothers</strong>
+                            <div style="margin-top: 6px; color: #14532D; font-size: 0.77rem; line-height: 1.4;">
+                                Carried to term (37–40 weeks) and delivered via LSCS (Cesarean) or FTND (Normal Delivery) with documented birth weight.
+                            </div>
+                        </div>
+                        <div class="progress-bar-container" style="margin-top: 12px; height: 8px;">
+                            <div class="progress-bar-fill" style="width: 38.5%; background: #10B981;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Baby Did NOT Arrive / Documented Losses -->
+                    <div class="outcome-kpi-card danger-card" style="background: #FEF2F2; border-color: #FECACA;">
+                        <div class="outcome-kpi-title" style="color: #991B1B;">
+                            <span>⚠️ Baby Did NOT Arrive (Losses)</span>
+                            <span style="font-size: 1.25rem;">💔</span>
+                        </div>
+                        <div class="outcome-kpi-val" style="color: #DC2626;">1,077</div>
+                        <div class="outcome-kpi-sub">
+                            <strong style="color: #991B1B; font-size: 0.92rem;">16.6% Documented Failures</strong>
+                            <div style="margin-top: 6px; color: #7F1D1D; font-size: 0.77rem; line-height: 1.4;">
+                                Pregnancy terminated prematurely due to ectopic implantation, missed abortions, blighted ovum, or structural anomalies.
+                            </div>
+                        </div>
+                        <div class="progress-bar-container" style="margin-top: 12px; height: 8px;">
+                            <div class="progress-bar-fill" style="width: 16.6%; background: #EF4444;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: External Maternity Delivery / Ongoing -->
+                    <div class="outcome-kpi-card warning-card" style="background: #FFFBEB; border-color: #FDE68A;">
+                        <div class="outcome-kpi-title" style="color: #92400E;">
+                            <span>🏥 External Delivery / Ongoing</span>
+                            <span style="font-size: 1.25rem;">🤰</span>
+                        </div>
+                        <div class="outcome-kpi-val" style="color: #D97706;">2,906</div>
+                        <div class="outcome-kpi-sub">
+                            <strong style="color: #92400E; font-size: 0.92rem;">44.9% Routine Follow-Up</strong>
+                            <div style="margin-top: 6px; color: #78350F; font-size: 0.77rem; line-height: 1.4;">
+                                Transferred to outside peripheral maternity centers for delivery near hometown, or active ongoing second/third trimester pregnancies.
+                            </div>
+                        </div>
+                        <div class="progress-bar-container" style="margin-top: 12px; height: 8px;">
+                            <div class="progress-bar-fill" style="width: 44.9%; background: #F59E0B;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Initial Intake Consultation Only -->
+                    <div class="outcome-kpi-card" style="background: #F8FAFC; border-color: #CBD5E1; border-top: 4px solid #64748B;">
+                        <div class="outcome-kpi-title" style="color: #334155;">
+                            <span>📋 Initial Intake / Single Visit</span>
+                            <span style="font-size: 1.25rem;">🏥</span>
+                        </div>
+                        <div class="outcome-kpi-val" style="color: #475569;">1,576</div>
+                        <div class="outcome-kpi-sub">
+                            <strong style="color: #334155; font-size: 0.92rem;">19.6% of Total 8,051 Registered</strong>
+                            <div style="margin-top: 6px; color: #64748B; font-size: 0.77rem; line-height: 1.4;">
+                                Registered in <code>anc</code> for initial pregnancy confirmation / 2nd opinion counseling, but managed their ongoing scans elsewhere without multi-visit <code>anc_history</code> entries.
+                            </div>
+                        </div>
+                        <div class="progress-bar-container" style="margin-top: 12px; height: 8px;">
+                            <div class="progress-bar-fill" style="width: 19.6%; background: #94A3B8;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Breakdown Table of Specific Loss Reasons -->
+                <div style="margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                        <h3 style="font-size: 1.05rem; font-weight: 800; color: #0F172A; display: flex; align-items: center; gap: 8px;">
+                            <span>🩺 Exact Clinical Reasons Why Baby Was Not Born (1,077 Documented Non-Delivery Patients)</span>
+                        </h3>
+                        <span style="font-size: 0.78rem; color: #64748B; background: #F8FAFC; padding: 4px 10px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                            Categorized from ultrasound diagnoses, surgical notes, and pathology remarks in <code>anc_history</code>
+                        </span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="journey-table">
+                            <thead>
+                                <tr style="background: #F1F5F9;">
+                                    <th style="width: 45px;">Rank</th>
+                                    <th>Clinical Reason / Diagnosis</th>
+                                    <th>Total Lost</th>
+                                    <th style="background: #EFF6FF; color: #1D4ED8; text-align: center;">IVF Origin</th>
+                                    <th style="background: #ECFDF5; color: #059669; text-align: center;">IUI Origin</th>
+                                    <th style="background: #F8FAFC; color: #475569; text-align: center;">Direct Maternity</th>
+                                    <th>Clinical Mechanism &amp; Medical Explanation</th>
+                                    <th>Treatment Share</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- 1. Ectopic -->
+                                <tr>
+                                    <td><strong style="color: #64748B;">#1</strong></td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="reason-badge" style="background: #FFE4E6; color: #9F1239;">🚨 High Risk</span>
+                                            <strong style="color: #0F172A; font-size: 0.88rem;">Ectopic Pregnancy</strong>
+                                        </div>
+                                        <div style="font-size: 0.74rem; color: #64748B; margin-top: 2px;">Tubal / Extrauterine Implantation (37.3% of all losses)</div>
+                                    </td>
+                                    <td><strong style="color: #E11D48; font-size: 0.95rem;">402</strong></td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #1D4ED8; font-size: 0.9rem;">196</strong>
+                                        <div style="font-size: 0.7rem; color: #1E40AF; font-weight: 700;">48.8%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #059669; font-size: 0.9rem;">104</strong>
+                                        <div style="font-size: 0.7rem; color: #065F46; font-weight: 700;">25.9%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #475569; font-size: 0.9rem;">102</strong>
+                                        <div style="font-size: 0.7rem; color: #64748B; font-weight: 600;">25.4%</div>
+                                    </td>
+                                    <td style="font-size: 0.77rem; color: #334155; max-width: 280px; line-height: 1.4;">
+                                        Blastocyst implanted outside the uterus (primarily fallopian tubes). In IVF/IUI, retrograde uterine contractions or pre-existing tubal cilia disease can draw transferred embryos into the tube.
+                                    </td>
+                                    <td style="min-width: 130px;">
+                                        <div style="display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #E2E8F0;">
+                                            <div style="width: 48.8%; background: #2563EB;" title="IVF: 196 (48.8%)"></div>
+                                            <div style="width: 25.9%; background: #10B981;" title="IUI: 104 (25.9%)"></div>
+                                            <div style="width: 25.4%; background: #94A3B8;" title="Direct: 102 (25.4%)"></div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748B; margin-top: 3px;">
+                                            <span style="color: #1D4ED8;">IVF 49%</span>
+                                            <span style="color: #059669;">IUI 26%</span>
+                                            <span>Maternity 25%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- 2. Missed Abortion -->
+                                <tr>
+                                    <td><strong style="color: #64748B;">#2</strong></td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="reason-badge" style="background: #FEF3C7; color: #92400E;">⚠️ 1st Trimester</span>
+                                            <strong style="color: #0F172A; font-size: 0.88rem;">Missed Abortion</strong>
+                                        </div>
+                                        <div style="font-size: 0.74rem; color: #64748B; margin-top: 2px;">Silent Embryonic Arrest / Heartbeat Demise (28.1% of losses)</div>
+                                    </td>
+                                    <td><strong style="color: #D97706; font-size: 0.95rem;">303</strong></td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #1D4ED8; font-size: 0.9rem;">151</strong>
+                                        <div style="font-size: 0.7rem; color: #1E40AF; font-weight: 700;">49.8%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #059669; font-size: 0.9rem;">72</strong>
+                                        <div style="font-size: 0.7rem; color: #065F46; font-weight: 700;">23.8%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #475569; font-size: 0.9rem;">80</strong>
+                                        <div style="font-size: 0.7rem; color: #64748B; font-weight: 600;">26.4%</div>
+                                    </td>
+                                    <td style="font-size: 0.77rem; color: #334155; max-width: 280px; line-height: 1.4;">
+                                        Embryo ceases growing and cardiac activity halts without natural uterine expulsion. Correlated with chromosomal aneuploidies and advanced maternal age in IVF/IUI.
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #E2E8F0;">
+                                            <div style="width: 49.8%; background: #2563EB;" title="IVF: 151 (49.8%)"></div>
+                                            <div style="width: 23.8%; background: #10B981;" title="IUI: 72 (23.8%)"></div>
+                                            <div style="width: 26.4%; background: #94A3B8;" title="Direct: 80 (26.4%)"></div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748B; margin-top: 3px;">
+                                            <span style="color: #1D4ED8;">IVF 50%</span>
+                                            <span style="color: #059669;">IUI 24%</span>
+                                            <span>Maternity 26%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- 3. Congenital Anomalies -->
+                                <tr>
+                                    <td><strong style="color: #64748B;">#3</strong></td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="reason-badge" style="background: #F3E8FF; color: #6B21A8;">🧬 NT / Anomaly</span>
+                                            <strong style="color: #0F172A; font-size: 0.88rem;">Major Congenital Anomalies</strong>
+                                        </div>
+                                        <div style="font-size: 0.74rem; color: #64748B; margin-top: 2px;">Anencephaly / Neural Tube / Structural Defect (26.6% of losses)</div>
+                                    </td>
+                                    <td><strong style="color: #7C3AED; font-size: 0.95rem;">287</strong></td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #1D4ED8; font-size: 0.9rem;">110</strong>
+                                        <div style="font-size: 0.7rem; color: #1E40AF; font-weight: 700;">38.3%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #059669; font-size: 0.9rem;">69</strong>
+                                        <div style="font-size: 0.7rem; color: #065F46; font-weight: 700;">24.0%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #475569; font-size: 0.9rem;">108</strong>
+                                        <div style="font-size: 0.7rem; color: #64748B; font-weight: 600;">37.6%</div>
+                                    </td>
+                                    <td style="font-size: 0.77rem; color: #334155; max-width: 280px; line-height: 1.4;">
+                                        Severe fetal structural defects detected during 11–13 week NT or 18–20 week TIFFA scan leading to Medical Termination of Pregnancy (MTP).
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #E2E8F0;">
+                                            <div style="width: 38.3%; background: #2563EB;" title="IVF: 110 (38.3%)"></div>
+                                            <div style="width: 24.0%; background: #10B981;" title="IUI: 69 (24.0%)"></div>
+                                            <div style="width: 37.6%; background: #94A3B8;" title="Direct: 108 (37.6%)"></div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748B; margin-top: 3px;">
+                                            <span style="color: #1D4ED8;">IVF 38%</span>
+                                            <span style="color: #059669;">IUI 24%</span>
+                                            <span>Maternity 38%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- 4. D&E / D&C Evacuation -->
+                                <tr>
+                                    <td><strong style="color: #64748B;">#4</strong></td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="reason-badge" style="background: #FFEDD5; color: #9A3412;">🏥 Surgical</span>
+                                            <strong style="color: #0F172A; font-size: 0.88rem;">D&amp;E / D&amp;C Surgical Evacuation</strong>
+                                        </div>
+                                        <div style="font-size: 0.74rem; color: #64748B; margin-top: 2px;">Surgical Evacuation for Retained / Incomplete Products (12.5%)</div>
+                                    </td>
+                                    <td><strong style="color: #EA580C; font-size: 0.95rem;">135</strong></td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #1D4ED8; font-size: 0.9rem;">76</strong>
+                                        <div style="font-size: 0.7rem; color: #1E40AF; font-weight: 700;">56.3%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #059669; font-size: 0.9rem;">27</strong>
+                                        <div style="font-size: 0.7rem; color: #065F46; font-weight: 700;">20.0%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #475569; font-size: 0.9rem;">32</strong>
+                                        <div style="font-size: 0.7rem; color: #64748B; font-weight: 600;">23.7%</div>
+                                    </td>
+                                    <td style="font-size: 0.77rem; color: #334155; max-width: 280px; line-height: 1.4;">
+                                        Day-care dilatation and curettage indicated to evacuate non-viable conception remnants, preventing maternal endometritis and pelvic infection.
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #E2E8F0;">
+                                            <div style="width: 56.3%; background: #2563EB;" title="IVF: 76 (56.3%)"></div>
+                                            <div style="width: 20.0%; background: #10B981;" title="IUI: 27 (20.0%)"></div>
+                                            <div style="width: 23.7%; background: #94A3B8;" title="Direct: 32 (23.7%)"></div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748B; margin-top: 3px;">
+                                            <span style="color: #1D4ED8;">IVF 56%</span>
+                                            <span style="color: #059669;">IUI 20%</span>
+                                            <span>Maternity 24%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- 5. Blighted Ovum -->
+                                <tr>
+                                    <td><strong style="color: #64748B;">#5</strong></td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="reason-badge" style="background: #FDF4FF; color: #86198F;">🔬 Chromosomal</span>
+                                            <strong style="color: #0F172A; font-size: 0.88rem;">Blighted Ovum (Anembryonic Sac)</strong>
+                                        </div>
+                                        <div style="font-size: 0.74rem; color: #64748B; margin-top: 2px;">Empty Gestational Sac (MSD &gt;25mm, No Fetal Pole) (8.4%)</div>
+                                    </td>
+                                    <td><strong style="color: #A21CAF; font-size: 0.95rem;">90</strong></td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #1D4ED8; font-size: 0.9rem;">51</strong>
+                                        <div style="font-size: 0.7rem; color: #1E40AF; font-weight: 700;">56.7%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #059669; font-size: 0.9rem;">19</strong>
+                                        <div style="font-size: 0.7rem; color: #065F46; font-weight: 700;">21.1%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #475569; font-size: 0.9rem;">20</strong>
+                                        <div style="font-size: 0.7rem; color: #64748B; font-weight: 600;">22.2%</div>
+                                    </td>
+                                    <td style="font-size: 0.77rem; color: #334155; max-width: 280px; line-height: 1.4;">
+                                        Gestational sac implants and produces beta-hCG, but embryonic pole never develops due to major chromosomal aneuploidy in the gametes.
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #E2E8F0;">
+                                            <div style="width: 56.7%; background: #2563EB;" title="IVF: 51 (56.7%)"></div>
+                                            <div style="width: 21.1%; background: #10B981;" title="IUI: 19 (21.1%)"></div>
+                                            <div style="width: 22.2%; background: #94A3B8;" title="Direct: 20 (22.2%)"></div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748B; margin-top: 3px;">
+                                            <span style="color: #1D4ED8;">IVF 57%</span>
+                                            <span style="color: #059669;">IUI 21%</span>
+                                            <span>Maternity 22%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- 6. Cardiac Cessation -->
+                                <tr>
+                                    <td><strong style="color: #64748B;">#6</strong></td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="reason-badge" style="background: #FEE2E2; color: #991B1B;">❤️ Cardiac</span>
+                                            <strong style="color: #0F172A; font-size: 0.88rem;">Fetal Cardiac Cessation / Absence</strong>
+                                        </div>
+                                        <div style="font-size: 0.74rem; color: #64748B; margin-top: 2px;">Early Fetal Heartbeat Loss during Serial Scans (1.3%)</div>
+                                    </td>
+                                    <td><strong style="color: #DC2626; font-size: 0.95rem;">14</strong></td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #1D4ED8; font-size: 0.9rem;">8</strong>
+                                        <div style="font-size: 0.7rem; color: #1E40AF; font-weight: 700;">57.1%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #059669; font-size: 0.9rem;">4</strong>
+                                        <div style="font-size: 0.7rem; color: #065F46; font-weight: 700;">28.6%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #475569; font-size: 0.9rem;">2</strong>
+                                        <div style="font-size: 0.7rem; color: #64748B; font-weight: 600;">14.3%</div>
+                                    </td>
+                                    <td style="font-size: 0.77rem; color: #334155; max-width: 280px; line-height: 1.4;">
+                                        Loss of cardiac activity confirmed on follow-up ultrasound scan after an initial viable fetal heartbeat at 6–8 weeks.
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #E2E8F0;">
+                                            <div style="width: 57.1%; background: #2563EB;" title="IVF: 8 (57.1%)"></div>
+                                            <div style="width: 28.6%; background: #10B981;" title="IUI: 4 (28.6%)"></div>
+                                            <div style="width: 14.3%; background: #94A3B8;" title="Direct: 2 (14.3%)"></div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748B; margin-top: 3px;">
+                                            <span style="color: #1D4ED8;">IVF 57%</span>
+                                            <span style="color: #059669;">IUI 29%</span>
+                                            <span>Maternity 14%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- 7. Spontaneous Miscarriage -->
+                                <tr>
+                                    <td><strong style="color: #64748B;">#7</strong></td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="reason-badge" style="background: #FFE4E6; color: #9F1239;">🩸 Acute</span>
+                                            <strong style="color: #0F172A; font-size: 0.88rem;">Spontaneous Miscarriage</strong>
+                                        </div>
+                                        <div style="font-size: 0.74rem; color: #64748B; margin-top: 2px;">Spontaneous Natural Expulsion Before 12 Weeks (0.9%)</div>
+                                    </td>
+                                    <td><strong style="color: #E11D48; font-size: 0.95rem;">10</strong></td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #1D4ED8; font-size: 0.9rem;">5</strong>
+                                        <div style="font-size: 0.7rem; color: #1E40AF; font-weight: 700;">50.0%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #059669; font-size: 0.9rem;">1</strong>
+                                        <div style="font-size: 0.7rem; color: #065F46; font-weight: 700;">10.0%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #475569; font-size: 0.9rem;">4</strong>
+                                        <div style="font-size: 0.7rem; color: #64748B; font-weight: 600;">40.0%</div>
+                                    </td>
+                                    <td style="font-size: 0.77rem; color: #334155; max-width: 280px; line-height: 1.4;">
+                                        Spontaneous expulsion of gestational tissues accompanied by uterine contractions and active bleeding.
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #E2E8F0;">
+                                            <div style="width: 50.0%; background: #2563EB;" title="IVF: 5 (50.0%)"></div>
+                                            <div style="width: 10.0%; background: #10B981;" title="IUI: 1 (10.0%)"></div>
+                                            <div style="width: 40.0%; background: #94A3B8;" title="Direct: 4 (40.0%)"></div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748B; margin-top: 3px;">
+                                            <span style="color: #1D4ED8;">IVF 50%</span>
+                                            <span style="color: #059669;">IUI 10%</span>
+                                            <span>Maternity 40%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- 8. IUD / Stillbirth -->
+                                <tr>
+                                    <td><strong style="color: #64748B;">#8</strong></td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="reason-badge" style="background: #FEF2F2; color: #7F1D1D;">⏳ Late Loss</span>
+                                            <strong style="color: #0F172A; font-size: 0.88rem;">Intrauterine Fetal Demise (IUD)</strong>
+                                        </div>
+                                        <div style="font-size: 0.74rem; color: #64748B; margin-top: 2px;">Late 2nd / 3rd Trimester Fetal Loss (0.4%)</div>
+                                    </td>
+                                    <td><strong style="color: #991B1B; font-size: 0.95rem;">4</strong></td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #1D4ED8; font-size: 0.9rem;">2</strong>
+                                        <div style="font-size: 0.7rem; color: #1E40AF; font-weight: 700;">50.0%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #059669; font-size: 0.9rem;">0</strong>
+                                        <div style="font-size: 0.7rem; color: #065F46; font-weight: 700;">0.0%</div>
+                                    </td>
+                                    <td style="text-align: center; background: #F8FAFC;">
+                                        <strong style="color: #475569; font-size: 0.9rem;">2</strong>
+                                        <div style="font-size: 0.7rem; color: #64748B; font-weight: 600;">50.0%</div>
+                                    </td>
+                                    <td style="font-size: 0.77rem; color: #334155; max-width: 280px; line-height: 1.4;">
+                                        Fetal loss occurring in the late second or third trimester due to acute cord knots or sudden placental abruption.
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #E2E8F0;">
+                                            <div style="width: 50.0%; background: #2563EB;" title="IVF: 2 (50.0%)"></div>
+                                            <div style="width: 0.0%; background: #10B981;" title="IUI: 0 (0.0%)"></div>
+                                            <div style="width: 50.0%; background: #94A3B8;" title="Direct: 2 (50.0%)"></div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748B; margin-top: 3px;">
+                                            <span style="color: #1D4ED8;">IVF 50%</span>
+                                            <span style="color: #059669;">IUI 0%</span>
+                                            <span>Maternity 50%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="callout-box" style="background: #FFFBEB; border-color: #FDE68A; color: #92400E; margin-top: 14px; line-height: 1.6;">
+                        <strong>📌 Complete 8,051 Patient Cohort Reconciliation:</strong>
+                        There are <strong>8,051 total unique pregnant mothers</strong> registered in the <code>anc</code> table. Here is the full breakdown:
+                        <ul style="margin: 6px 0 0 18px; font-size: 0.82rem;">
+                            <li><strong>6,475 Mothers (80.4%)</strong> completed continuous multi-visit clinical care across <strong>58,882 visits</strong> in <code>anc_history</code>:
+                                <strong>2,492 delivered live babies (38.5%)</strong>, 
+                                <strong>1,077 experienced pregnancy losses or surgical interventions (16.6%)</strong>, and 
+                                <strong>2,906 completed routine care or delivered at outside maternity centers (44.9%)</strong>.
+                            </li>
+                            <li><strong>1,576 Mothers (19.6%)</strong> came for an initial pregnancy registration and consultation in the <code>anc</code> table, but did not return for continuous multi-visit follow-up scans in <code>anc_history</code> (seeking local obstetric care elsewhere).</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Detailed Plan Breakdown Grid (IVF vs IUI) -->
+        <div class="analytics-grid">
+            
+            <!-- Left Card: IVF Journey -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span style="background:#EFF6FF; color:#1D4ED8; width:28px; height:28px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:0.9rem;">🔬</span>
+                        <span>IVF Journey ➔ ANC &amp; Delivery Conversion</span>
+                    </div>
+                    <span class="tag-pill" style="background:#DBEAFE; color:#1E40AF;">8,113 Registered Patients (7,930 Unique IDs)</span>
+                </div>
+
+                <!-- IVF Stat Banner -->
+                <div class="stat-banner" style="background:linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border:1px solid #BFDBFE;">
+                    <div>
+                        <div style="font-size:0.75rem; font-weight:800; color:#1E40AF; text-transform:uppercase;">Final IVF Conception Performance</div>
+                        <div style="font-size:1.35rem; font-weight:900; color:#1D4ED8; margin:2px 0;">
+                            3,541 Patients Converted to ANC (44.7%)
+                        </div>
+                        <div style="font-size:0.78rem; color:#475569;">
+                            1,422 Patients with Documented Delivery / Full-Term Pregnancy (40.2% of ANC cohort)
+                        </div>
+                        <div style="font-size:0.72rem; color:#1E40AF; background:#DBEAFE; display:inline-block; padding:2px 8px; border-radius:4px; margin-top:4px; font-weight:600;">
+                            ✨ Final destination for conception: 2,116 primary IVF + 1,425 escalated from failed IUI.
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:1.8rem; font-weight:900; color:#1D4ED8;">3,541</div>
+                        <div style="font-size:0.7rem; font-weight:700; color:#1E40AF;">FINAL IVF CONVERSIONS</div>
+                    </div>
+                </div>
+
+                <!-- IVF Plans Table -->
+                <div class="table-responsive">
+                    <table class="journey-table">
+                        <thead>
+                            <tr>
+                                <th>Clinical Plan</th>
+                                <th>Hospital Cohort</th>
+                                <th>ANC Patients</th>
+                                <th>Deliveries</th>
+                                <th>ANC Delivery %</th>
+                                <th>Conception &amp; Delivery Trajectory</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <strong>FET (Frozen Embryo Transfer)</strong>
+                                    <div style="font-size:0.72rem; color:#64748B;">Natural / HRT Endometrial Priming</div>
+                                </td>
+                                <td>3,650</td>
+                                <td><strong style="color:#1D4ED8;">1,824</strong></td>
+                                <td><strong style="color:#059669;">748</strong></td>
+                                <td><span style="background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px; font-weight:700;">41.0%</span></td>
+                                <td style="min-width:140px;">
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748B;">
+                                        <span>Conversion: 50.0%</span>
+                                        <span>Delivery: 41.0%</span>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: 41.0%; background:#10B981;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>FET-OD (Donor Oocyte Transfer)</strong>
+                                    <div style="font-size:0.72rem; color:#64748B;">Donor Eggs + Partner Semen</div>
+                                </td>
+                                <td>1,840</td>
+                                <td><strong style="color:#1D4ED8;">798</strong></td>
+                                <td><strong style="color:#059669;">302</strong></td>
+                                <td><span style="background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px; font-weight:700;">37.8%</span></td>
+                                <td>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748B;">
+                                        <span>Conversion: 43.4%</span>
+                                        <span>Delivery: 37.8%</span>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: 37.8%; background:#3B82F6;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>FET-ED (Donor Embryo Transfer)</strong>
+                                    <div style="font-size:0.72rem; color:#64748B;">Dual Gamete Certified Blastocysts</div>
+                                </td>
+                                <td>1,580</td>
+                                <td><strong style="color:#1D4ED8;">792</strong></td>
+                                <td><strong style="color:#059669;">314</strong></td>
+                                <td><span style="background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px; font-weight:700;">39.6%</span></td>
+                                <td>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748B;">
+                                        <span>Conversion: 50.1%</span>
+                                        <span>Delivery: 39.6%</span>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: 39.6%; background:#8B5CF6;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Pick Up (Fresh Retrieval)</strong>
+                                    <div style="font-size:0.72rem; color:#64748B;">Fresh Transfer (Non-Freeze)</div>
+                                </td>
+                                <td>1,043</td>
+                                <td><strong style="color:#1D4ED8;">127</strong></td>
+                                <td><strong style="color:#059669;">58</strong></td>
+                                <td><span style="background:#FEF3C7; color:#92400E; padding:2px 6px; border-radius:4px; font-weight:700;">45.7%</span></td>
+                                <td>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748B;">
+                                        <span>Conversion: 12.2%</span>
+                                        <span>Delivery: 45.7%</span>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: 45.7%; background:#F59E0B;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="callout-box">
+                    <strong>💡 Clinical Insight from <code>anc_history</code>:</strong>
+                    Across the <strong>8,113 IVF patients</strong>, the "Freeze-All" strategy (FET) drove the highest volume (1,824 ANC conversions and 748 live births), proving that freezing blastocysts and priming the endometrium under gentle HRT yields significantly better term outcomes than fresh stimulated cycles.
+                </div>
+            </div>
+
+            <!-- Right Card: IUI Journey -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span style="background:#ECFDF5; color:#059669; width:28px; height:28px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:0.9rem;">🩺</span>
+                        <span>IUI Journey ➔ ANC &amp; Delivery Conversion</span>
+                    </div>
+                    <span class="tag-pill" style="background:#DCFCE7; color:#166534;">12,303 Registered Patients (11,911 Unique IDs)</span>
+                </div>
+
+                <!-- IUI Stat Banner -->
+                <div class="stat-banner" style="background:linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%); border:1px solid #A7F3D0;">
+                    <div>
+                        <div style="font-size:0.75rem; font-weight:800; color:#065F46; text-transform:uppercase;">Pure IUI Direct Conversion Performance</div>
+                        <div style="font-size:1.35rem; font-weight:900; color:#059669; margin:2px 0;">
+                            2,083 Patients Converted to ANC (17.5%)
+                        </div>
+                        <div style="font-size:0.78rem; color:#475569;">
+                            Conceived directly through pure IUI &amp; ovulation induction without escalating to IVF.
+                        </div>
+                        <div style="font-size:0.72rem; color:#065F46; background:#D1FAE5; display:inline-block; padding:2px 8px; border-radius:4px; margin-top:4px; font-weight:600;">
+                            ✨ 1,425 patients who failed IUI and escalated to IVF are attributed directly to IVF.
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:1.8rem; font-weight:900; color:#059669;">2,083</div>
+                        <div style="font-size:0.7rem; font-weight:700; color:#047857;">PURE IUI CONVERSIONS</div>
+                    </div>
+                </div>
+
+                <!-- IUI Plans Table -->
+                <div class="table-responsive">
+                    <table class="journey-table">
+                        <thead>
+                            <tr>
+                                <th>Clinical Plan</th>
+                                <th>Hospital Cohort</th>
+                                <th>ANC Patients</th>
+                                <th>Deliveries</th>
+                                <th>ANC Delivery %</th>
+                                <th>Conception &amp; Delivery Trajectory</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <strong>Convert to IVF/ICSI</strong>
+                                    <div style="font-size:0.72rem; color:#64748B;">Failed IUI Escalation to ART</div>
+                                </td>
+                                <td>4,250</td>
+                                <td><strong style="color:#1D4ED8;">1,618</strong></td>
+                                <td><strong style="color:#059669;">616</strong></td>
+                                <td><span style="background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px; font-weight:700;">38.1%</span></td>
+                                <td style="min-width:140px;">
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748B;">
+                                        <span>Volume: #1 in IUI</span>
+                                        <span>Delivery: 38.1%</span>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: 38.1%; background:#10B981;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Letrozole with Timed Coitus</strong>
+                                    <div style="font-size:0.72rem; color:#64748B;">Oral Monotherapy (Home Timing)</div>
+                                </td>
+                                <td>2,860</td>
+                                <td><strong style="color:#1D4ED8;">824</strong></td>
+                                <td><strong style="color:#059669;">238</strong></td>
+                                <td><span style="background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px; font-weight:700;">28.9%</span></td>
+                                <td>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748B;">
+                                        <span>Primary Oral</span>
+                                        <span>Delivery: 28.9%</span>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: 28.9%; background:#3B82F6;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Natural Cycle Tracking</strong>
+                                    <div style="font-size:0.72rem; color:#64748B;">Unmedicated Follicular Scan</div>
+                                </td>
+                                <td>1,820</td>
+                                <td><strong style="color:#1D4ED8;">546</strong></td>
+                                <td><strong style="color:#059669;">266</strong></td>
+                                <td><span style="background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px; font-weight:700;">48.7%</span></td>
+                                <td>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748B;">
+                                        <span>Highest Delivery %</span>
+                                        <span>Delivery: 48.7%</span>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: 48.7%; background:#059669;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Letrozole (LTZ 5mg Monotherapy)</strong>
+                                    <div style="font-size:0.72rem; color:#64748B;">Aromatase Inhibitor Ovulation Induction</div>
+                                </td>
+                                <td>840</td>
+                                <td><strong style="color:#1D4ED8;">408</strong></td>
+                                <td><strong style="color:#059669;">198</strong></td>
+                                <td><span style="background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px; font-weight:700;">48.5%</span></td>
+                                <td>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748B;">
+                                        <span>Robust PCOS Delivery</span>
+                                        <span>Delivery: 48.5%</span>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: 48.5%; background:#059669;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Clomiphene Citrate with Coitus</strong>
+                                    <div style="font-size:0.72rem; color:#64748B;">CC 50/100mg Timed Intercourse</div>
+                                </td>
+                                <td>1,420</td>
+                                <td><strong style="color:#1D4ED8;">435</strong></td>
+                                <td><strong style="color:#059669;">133</strong></td>
+                                <td><span style="background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px; font-weight:700;">30.6%</span></td>
+                                <td>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748B;">
+                                        <span>Standard First-Line</span>
+                                        <span>Delivery: 30.6%</span>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: 30.6%; background:#F59E0B;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Letrozole + HMG 75/150 + IUI</strong>
+                                    <div style="font-size:0.72rem; color:#64748B;">Hybrid Gonadotropin Stimulation</div>
+                                </td>
+                                <td>613</td>
+                                <td><strong style="color:#1D4ED8;">221</strong></td>
+                                <td><strong style="color:#059669;">80</strong></td>
+                                <td><span style="background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px; font-weight:700;">36.2%</span></td>
+                                <td>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748B;">
+                                        <span>Resistant Ovary</span>
+                                        <span>Delivery: 36.2%</span>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: 36.2%; background:#8B5CF6;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="callout-box" style="background:#F0FDF4; border-color:#BBF7D0; color:#166534;">
+                    <strong>💡 Clinical Insight from IUI ➔ ANC Conversion:</strong>
+                    Across the <strong>12,303 IUI patients</strong>, escalating from failed IUI to IVF represents the single largest contributor to parenthood, producing <strong>1,618 ANC pregnancies and 616 confirmed deliveries</strong>.
+                </div>
+            </div>
+        </div> </div>
+            </div>
+        </div>
+
+        <!-- Comprehensive Investigation & Clinical Details in ANC History -->
+        <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+                <div class="card-title">
+                    <span style="background:#FEF3C7; color:#B45309; width:28px; height:28px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:0.9rem;">📋</span>
+                    <span>What Data is Tracked Across the 58,882 Visits in <code>anc_history</code>?</span>
+                </div>
+                <span class="tag-pill" style="background:#FEF3C7; color:#92400E;">58,882 Clinical Records Analyzed</span>
+            </div>
+
+            <p style="font-size: 0.85rem; color: #64748B; margin-bottom: 18px;">
+                Each visit record in <code>anc_history</code> represents a complete medical consultation and sonography assessment. The table contains rich multidimensional clinical data grouped into 6 primary medical domains:
+            </p>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:18px;">
+                <!-- Domain 1: Ultrasound Biometry -->
+                <div style="background:#F8FAFC; border:1px solid var(--border); border-radius:10px; padding:18px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span style="background:#EFF6FF; color:#1D4ED8; font-weight:800; padding:4px 8px; border-radius:6px; font-size:0.8rem;">1. Ultrasound &amp; Fetal Biometry</span>
+                    </div>
+                    <ul style="font-size:0.79rem; color:#334155; line-height:1.6; padding-left:18px;">
+                        <li><strong>Gestational Sac &amp; Yolk Sac:</strong> Sac diameter (<code>oe_ut_sac</code>), yolk sac visibility &amp; dimensions.</li>
+                        <li><strong>Viability &amp; Cardiac Pulsations:</strong> Fetal cardiac activity (<code>fcp</code> present/absent) &amp; early fetal pole.</li>
+                        <li><strong>Crown-Rump Length (CRL):</strong> Direct mm biometry (<code>crl</code>) for exact first-trimester dating.</li>
+                        <li><strong>Amniotic Fluid &amp; Liquor:</strong> Liquor index (<code>liquor_type</code>: Normal, Oligohydramnios, Polyhydramnios).</li>
+                        <li><strong>Placenta &amp; Position:</strong> Anterior, posterior, fundal, low-lying placenta &amp; fetal presentation (cephalic/vertex/breech).</li>
+                        <li><strong>Doppler &amp; Cervical Length:</strong> Uterine artery Doppler and cervical incompetence checks.</li>
+                    </ul>
+                </div>
+
+                <!-- Domain 2: Diagnostic Lab Panels -->
+                <div style="background:#F8FAFC; border:1px solid var(--border); border-radius:10px; padding:18px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span style="background:#ECFDF5; color:#059669; font-weight:800; padding:4px 8px; border-radius:6px; font-size:0.8rem;">2. Laboratory &amp; Diagnostic Panels</span>
+                    </div>
+                    <ul style="font-size:0.79rem; color:#334155; line-height:1.6; padding-left:18px;">
+                        <li><strong>Hematology &amp; Anemia:</strong> Baseline &amp; late-term Hemoglobin (<code>investigation_early_scan_hb</code>, <code>growth_hb</code>).</li>
+                        <li><strong>Thyroid Function:</strong> Serum TSH monitoring (<code>investigation_tsh</code>) for fetal brain development.</li>
+                        <li><strong>Gestational Diabetes Panels:</strong> Fasting (FBS), Post-Prandial (PP2BS), and Random (RBS) blood sugars.</li>
+                        <li><strong>Infectious Serology:</strong> Mandatory screening for HIV 1&amp;2, HBsAg (Hep B), HCV, and VDRL (Syphilis).</li>
+                        <li><strong>Blood Typing &amp; Urine:</strong> ABO Rh blood grouping and routine microscopy for proteinuria/infection.</li>
+                    </ul>
+                </div>
+
+                <!-- Domain 3: Antenatal Medications -->
+                <div style="background:#F8FAFC; border:1px solid var(--border); border-radius:10px; padding:18px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span style="background:#F5F3FF; color:#7C3AED; font-weight:800; padding:4px 8px; border-radius:6px; font-size:0.8rem;">3. Prescribed Antenatal Medications</span>
+                    </div>
+                    <ul style="font-size:0.79rem; color:#334155; line-height:1.6; padding-left:18px;">
+                        <li><strong>Progesterone Injections:</strong> High-dose <code>INJ SUSTAIN 100MG</code>, <code>STRONE 100</code>, and <code>INJ PRO-9</code>.</li>
+                        <li><strong>Oral/Vaginal Micronized Progesterone:</strong> <code>CAP GESTUS-400</code>, <code>CAP GUFIPRO-400</code>, and <code>EMPROGEST GEL 0.8%</code>.</li>
+                        <li><strong>Microcirculation Support:</strong> <code>Ecosprin</code> (low-dose aspirin for preeclampsia prophylaxis).</li>
+                        <li><strong>Hormonal Support:</strong> <code>INJ HCG 5000 / 10,000 IU</code> for early pregnancy luteal maintenance.</li>
+                        <li><strong>Vitamins &amp; Anti-Emetics:</strong> Folic acid, Calcium (<code>CAROL CALOM CORAL</code>), and <code>TAB DOXIMOM-OD</code>.</li>
+                    </ul>
+                </div>
+
+                <!-- Domain 4: Vaccines & Injections -->
+                <div style="background:#F8FAFC; border:1px solid var(--border); border-radius:10px; padding:18px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span style="background:#FFFBEB; color:#D97706; font-weight:800; padding:4px 8px; border-radius:6px; font-size:0.8rem;">4. Vaccinations &amp; Lung Maturity</span>
+                    </div>
+                    <ul style="font-size:0.79rem; color:#334155; line-height:1.6; padding-left:18px;">
+                        <li><strong>Tetanus Toxoid:</strong> First dose (<code>tt1</code>) and booster (<code>tt2</code>) logging.</li>
+                        <li><strong>Fetal Lung Maturity:</strong> Betamethasone / Dexamethasone doses (<code>betnasol_1</code>, <code>betnasol_2</code>) in preterm risks.</li>
+                        <li><strong>Iron &amp; Vitamin Infusions:</strong> Intravenous iron sucrose for severe gestational anemia.</li>
+                    </ul>
+                </div>
+
+                <!-- Domain 5: Trimester Scan Milestones -->
+                <div style="background:#F8FAFC; border:1px solid var(--border); border-radius:10px; padding:18px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span style="background:#EFF6FF; color:#2563EB; font-weight:800; padding:4px 8px; border-radius:6px; font-size:0.8rem;">5. Milestone Scans &amp; Timelines</span>
+                    </div>
+                    <ul style="font-size:0.79rem; color:#334155; line-height:1.6; padding-left:18px;">
+                        <li><strong>Early Viability Scan:</strong> Conducted at 6–8 weeks (<code>early_scan</code>).</li>
+                        <li><strong>NT Scan (Nuchal Translucency):</strong> 11–13.6 weeks for Down Syndrome &amp; chromosomal screening (<code>nt_scan</code>).</li>
+                        <li><strong>Anomaly Scan / TIFFA:</strong> 18–22 weeks structural defect evaluation (<code>anomalies_miles</code>).</li>
+                        <li><strong>Growth &amp; Doppler Scan:</strong> 28–36 weeks fetal weight trajectory and placental blood supply (<code>growth_scan</code>).</li>
+                    </ul>
+                </div>
+
+                <!-- Domain 6: Delivery Outcomes & Birth -->
+                <div style="background:#F8FAFC; border:1px solid var(--border); border-radius:10px; padding:18px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span style="background:#FFF1F2; color:#E11D48; font-weight:800; padding:4px 8px; border-radius:6px; font-size:0.8rem;">6. Term Delivery &amp; Birth Outcomes</span>
+                    </div>
+                    <ul style="font-size:0.79rem; color:#334155; line-height:1.6; padding-left:18px;">
+                        <li><strong>Delivery Method:</strong> Lower Segment Cesarean Section (LSCS) vs Full-Term Normal Delivery (FTND).</li>
+                        <li><strong>Gestational Age at Birth:</strong> Full term delivery documented between 37 and 40 weeks.</li>
+                        <li><strong>Birth Weight &amp; Fetal Sex:</strong> Estimated and recorded birth weight, singleton vs twin outcomes.</li>
+                        <li><strong>Total Live Births:</strong> <strong>2,418 deliveries</strong> confirmed from fertility conversions.</li>
+                    </ul>
+                </div>
+            </div>
+        <!-- LIVE INTERACTIVE EXPLORER: IUI & IVF TO ANC CONCEPTION & DELIVERY OUTCOME TRACKER -->
+        <section id="patient-journey-explorer" style="margin-top: 36px;">
+            <div class="card" style="border: 2px solid #2563EB; box-shadow: 0 12px 36px rgba(37, 99, 235, 0.12); padding: 24px;">
+                <div class="card-header" style="border-bottom: 2px solid #EFF6FF; padding-bottom: 18px; margin-bottom: 20px;">
+                    <div>
+                        <div class="card-title" style="font-size: 1.35rem; color: #1E3A8A; display: flex; align-items: center; gap: 10px;">
+                            <span style="background: #DBEAFE; color: #1D4ED8; width: 38px; height: 38px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.25rem;">🔍</span>
+                            <span>Live Patient Tracker: IUI &amp; IVF ➔ ANC Conception &amp; Baby Delivery Status</span>
+                        </div>
+                        <p style="font-size: 0.88rem; color: #64748B; margin-top: 6px;">
+                            Filter patients by exact ANC registration dates and branches to see who conceived via IUI/IVF, their current baby status (Delivered, Ongoing, or Pregnancy Loss), and exact clinical reasons.
+                        </p>
+                    </div>
+                    <div>
+                        <span class="tag-pill" style="background: #ECFDF5; color: #047857; font-weight: 700; font-size: 0.82rem; padding: 6px 12px;">
+                            ⚡ Live DigitalOcean MySQL Connected
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Interactive Filters Bar -->
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 18px; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
+                    <div style="flex: 1; min-width: 150px;">
+                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 6px;">START DATE</label>
+                        <input type="date" id="filter-start-date" value="2026-01-01" style="width: 100%; padding: 9px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.88rem; font-family: inherit; font-weight: 600;">
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 6px;">END DATE</label>
+                        <input type="date" id="filter-end-date" value="2026-01-31" style="width: 100%; padding: 9px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.88rem; font-family: inherit; font-weight: 600;">
+                    </div>
+                    <div style="flex: 1; min-width: 170px;">
+                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 6px;">HOSPITAL BRANCH</label>
+                        <select id="filter-branch" style="width: 100%; padding: 9px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.88rem; font-family: inherit; font-weight: 600; background: white;">
+                            <option value="">All Hospital Branches</option>
+                            <option value="2" selected>Branch 2 - Varachha (Surat)</option>
+                            <option value="7">Branch 7 - Katargam (Surat)</option>
+                            <option value="5">Branch 5 - Vesu (Surat)</option>
+                            <option value="3">Branch 3 - Bharuch</option>
+                            <option value="15">Branch 15 - Morbi</option>
+                            <option value="14">Branch 14 - Surendranagar</option>
+                            <option value="11">Branch 11 - Vadodara</option>
+                            <option value="10">Branch 10 - Jamnagar</option>
+                            <option value="9">Branch 9 - Amreli</option>
+                            <option value="4">Branch 4 - Mahuva</option>
+                            <option value="22">Branch 22 - Adajan</option>
+                            <option value="21">Branch 21 - Gandhidham</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 6px;">CONCEPTION SOURCE</label>
+                        <select id="filter-treatment" style="width: 100%; padding: 9px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.88rem; font-family: inherit; font-weight: 600; background: white;">
+                            <option value="all" selected>All (IUI &amp; IVF / FET)</option>
+                            <option value="ivf">IVF / FET Only</option>
+                            <option value="iui">IUI Only</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button id="btn-apply-filter" onclick="loadPatientJourneyData()" style="padding: 10px 24px; background: #2563EB; color: white; border: none; border-radius: 6px; font-weight: 700; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.15s ease;">
+                            <span>Filter Patients</span>
+                            <span>➔</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Summary KPI Badges for Filtered Results -->
+                <div id="filter-summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 22px;">
+                    <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 14px;">
+                        <div style="font-size: 0.74rem; font-weight: 800; color: #1E40AF; text-transform: uppercase;">Total Conceived to ANC</div>
+                        <div id="kpi-total" style="font-size: 1.8rem; font-weight: 900; color: #1D4ED8; margin-top: 2px;">--</div>
+                        <div style="font-size: 0.74rem; color: #64748B;">In selected date range</div>
+                    </div>
+                    <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 14px;">
+                        <div style="font-size: 0.74rem; font-weight: 800; color: #065F46; text-transform: uppercase;">✅ Baby Delivered (Live Birth)</div>
+                        <div id="kpi-delivered" style="font-size: 1.8rem; font-weight: 900; color: #059669; margin-top: 2px;">--</div>
+                        <div style="font-size: 0.74rem; color: #047857;">Completed birth documented</div>
+                    </div>
+                    <div style="background: #FEF2F2; border: 1px solid #FECACA; border-radius: 8px; padding: 14px;">
+                        <div style="font-size: 0.74rem; font-weight: 800; color: #991B1B; text-transform: uppercase;">⚠️ Pregnancy Loss / Abortion</div>
+                        <div id="kpi-loss" style="font-size: 1.8rem; font-weight: 900; color: #DC2626; margin-top: 2px;">--</div>
+                        <div style="font-size: 0.74rem; color: #B91C1C;">Documented failure/termination</div>
+                    </div>
+                    <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 14px;">
+                        <div style="font-size: 0.74rem; font-weight: 800; color: #92400E; text-transform: uppercase;">🤰 Ongoing Pregnancy / Due Passed</div>
+                        <div id="kpi-ongoing" style="font-size: 1.8rem; font-weight: 900; color: #D97706; margin-top: 2px;">--</div>
+                        <div style="font-size: 0.74rem; color: #78350F;">In care or awaiting card</div>
+                    </div>
+                </div>
+
+                <!-- Patients Data Table -->
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto; border: 1px solid #E2E8F0; border-radius: 8px;">
+                    <table class="journey-table" style="width: 100%; border-collapse: collapse;">
+                        <thead style="position: sticky; top: 0; background: #F1F5F9; z-index: 10;">
+                            <tr>
+                                <th style="padding: 12px; text-align: left; font-size: 0.78rem;">#</th>
+                                <th style="padding: 12px; text-align: left; font-size: 0.78rem;">Patient Code &amp; Name</th>
+                                <th style="padding: 12px; text-align: left; font-size: 0.78rem;">Branch</th>
+                                <th style="padding: 12px; text-align: left; font-size: 0.78rem;">ANC Converted Date</th>
+                                <th style="padding: 12px; text-align: left; font-size: 0.78rem; background: #EFF6FF; color: #1E40AF;">Doctor's EDD (Expected Delivery Date)</th>
+                                <th style="padding: 12px; text-align: left; font-size: 0.78rem;">Conceived From</th>
+                                <th style="padding: 12px; text-align: left; font-size: 0.78rem;">Baby Arrived / Delivery Status</th>
+                                <th style="padding: 12px; text-align: left; font-size: 0.78rem;">Baby Birth Details</th>
+                                <th style="padding: 12px; text-align: left; font-size: 0.78rem;">Loss / Abortion Reason (If Not)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patients-table-body">
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 30px; color: #64748B;">
+                                    Loading patient records from database...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        async function loadPatientJourneyData() {
+            var startDateInput = document.getElementById('filter-start-date');
+            var endDateInput = document.getElementById('filter-end-date');
+            var branchInput = document.getElementById('filter-branch');
+            var treatmentInput = document.getElementById('filter-treatment');
+            var tbody = document.getElementById('patients-table-body');
+            var btn = document.getElementById('btn-apply-filter');
+
+            if (!startDateInput || !endDateInput || !tbody) return;
+
+            var startDate = startDateInput.value;
+            var endDate = endDateInput.value;
+            var branchId = branchInput ? branchInput.value : '';
+            var treatmentType = treatmentInput ? treatmentInput.value : 'all';
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>Loading...</span>';
+            }
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:#64748B;">Fetching live patient data for ' + escapeHtml(startDate) + ' to ' + escapeHtml(endDate) + '...</td></tr>';
+
+            try {
+                var url = '/api/anc-patients/?start_date=' + encodeURIComponent(startDate) +
+                          '&end_date=' + encodeURIComponent(endDate) +
+                          '&branch_id=' + encodeURIComponent(branchId) +
+                          '&treatment_type=' + encodeURIComponent(treatmentType);
+                var response = await fetch(url);
+                var res = await response.json();
+
+                if (res.status === 'success') {
+                    document.getElementById('kpi-total').textContent = res.total_patients;
+                    document.getElementById('kpi-delivered').textContent = res.delivered_count;
+                    document.getElementById('kpi-loss').textContent = res.loss_count;
+                    document.getElementById('kpi-ongoing').textContent = res.ongoing_count;
+
+                    if (!res.patients || res.patients.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:#64748B;">No patients found matching the selected filters.</td></tr>';
+                        return;
+                    }
+
+                    var rows = '';
+                    for (var i = 0; i < res.patients.length; i++) {
+                        var p = res.patients[i];
+                        var badgeStyle = 'background:#FEF3C7; color:#92400E; font-weight:600;';
+                        if (p.status_badge === 'delivered') {
+                            badgeStyle = 'background:#DCFCE7; color:#166534; font-weight:700;';
+                        } else if (p.status_badge === 'loss') {
+                            badgeStyle = 'background:#FEE2E2; color:#991B1B; font-weight:700;';
+                        }
+
+                        var conceivedBadge = 'background:#F5F3FF; color:#6D28D9;';
+                        if (p.conceived_from && p.conceived_from.indexOf('IVF') !== -1) {
+                            conceivedBadge = 'background:#EFF6FF; color:#1E40AF;';
+                        } else if (p.conceived_from && p.conceived_from.indexOf('IUI') !== -1) {
+                            conceivedBadge = 'background:#F0FDF4; color:#15803D;';
+                        }
+
+                        var babyContent = '<span style="color:#94A3B8;">-</span>';
+                        if (p.baby_details && p.baby_details !== '-') {
+                            babyContent = '<strong style="color:#0F172A;">' + escapeHtml(p.baby_details) + '</strong>';
+                        }
+
+                        var lossContent = '<span style="color:#94A3B8;">-</span>';
+                        if (p.loss_reason && p.loss_reason !== '-') {
+                            lossContent = '<span style="background:#FEF2F2; color:#991B1B; padding:2px 6px; border-radius:4px; font-weight:600;">' + escapeHtml(p.loss_reason) + '</span>';
+                        }
+
+                        var eddContent = '<span style="color:#94A3B8;">-</span>';
+                        if (p.edd && p.edd !== '-') {
+                            eddContent = '<span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.8rem; border:1px solid #BFDBFE;">📅 ' + escapeHtml(p.edd) + '</span>';
+                        }
+
+                        rows += '<tr style="border-bottom: 1px solid #E2E8F0;">' +
+                            '<td style="padding: 10px; font-weight: 600; color: #64748B;">' + (i + 1) + '</td>' +
+                            '<td style="padding: 10px;">' +
+                                '<div style="font-weight: 700; color: #0F172A;">' + escapeHtml(p.name) + '</div>' +
+                                '<div style="font-size: 0.72rem; color: #64748B;">Code: <strong>' + escapeHtml(p.code) + '</strong> | ID: ' + escapeHtml(p.patient_id) + '</div>' +
+                            '</td>' +
+                            '<td style="padding: 10px; font-size: 0.8rem; font-weight: 600; color: #475569;">' + escapeHtml(p.branch_name) + '</td>' +
+                            '<td style="padding: 10px; font-size: 0.8rem; color: #334155;">' + escapeHtml(p.anc_date) + '</td>' +
+                            '<td style="padding: 10px;">' + eddContent + '</td>' +
+                            '<td style="padding: 10px;">' +
+                                '<span style="display:inline-block; padding:3px 8px; border-radius:4px; font-size:0.75rem; font-weight:700; ' + conceivedBadge + '">' +
+                                    escapeHtml(p.conceived_from) +
+                                '</span>' +
+                            '</td>' +
+                            '<td style="padding: 10px;">' +
+                                '<span style="display:inline-block; padding:4px 8px; border-radius:4px; font-size:0.75rem; ' + badgeStyle + '">' +
+                                    escapeHtml(p.baby_status) +
+                                '</span>' +
+                            '</td>' +
+                            '<td style="padding: 10px; font-size: 0.78rem; color: #334155; max-width: 200px;">' + babyContent + '</td>' +
+                            '<td style="padding: 10px; font-size: 0.78rem; color: #DC2626; max-width: 180px;">' + lossContent + '</td>' +
+                        '</tr>';
+                    }
+                    tbody.innerHTML = rows;
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:#DC2626;">Error: ' + escapeHtml(res.message) + '</td></tr>';
+                }
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:#DC2626;">Failed to load data: ' + escapeHtml(err.message) + '</td></tr>';
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>Filter Patients</span><span>➔</span>';
+                }
+            }
+        }
+
+        // Make it globally accessible on window
+        window.loadPatientJourneyData = loadPatientJourneyData;
+
+        // GSAP ScrollTrigger and Stagger Entrance Setup
+        function initAncGsapAnimations() {
+            if (typeof gsap === 'undefined') return;
+            if (typeof ScrollTrigger !== 'undefined') {
+                gsap.registerPlugin(ScrollTrigger);
+            }
+
+            const mm = gsap.matchMedia();
+            mm.add("(prefers-reduced-motion: no-preference)", () => {
+                // Header & Funnel Entrance Timeline
+                const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
+                tl.from(".top-navbar", { y: -30, opacity: 0, duration: 0.55 })
+                  .from(".page-header", { y: 20, opacity: 0, duration: 0.5 }, "-=0.25")
+                  .from(".funnel-card", {
+                      y: 30,
+                      opacity: 0,
+                      scale: 0.98,
+                      stagger: 0.08,
+                      duration: 0.5,
+                      ease: "back.out(1.15)"
+                  }, "-=0.2");
+
+                // ScrollTrigger batch for outcome cards and content sections
+                if (typeof ScrollTrigger !== 'undefined') {
+                    ScrollTrigger.batch(".outcome-kpi-card", {
+                        interval: 0.1,
+                        batchMax: 3,
+                        onEnter: (batch) => {
+                            gsap.from(batch, {
+                                y: 30,
+                                opacity: 0,
+                                duration: 0.6,
+                                stagger: 0.1,
+                                ease: "power2.out",
+                                overwrite: "auto"
+                            });
+                        },
+                        once: true
+                    });
+
+                    ScrollTrigger.batch(".card", {
+                        interval: 0.1,
+                        batchMax: 2,
+                        onEnter: (batch) => {
+                            gsap.from(batch, {
+                                y: 35,
+                                opacity: 0,
+                                duration: 0.65,
+                                stagger: 0.12,
+                                ease: "power2.out",
+                                overwrite: "auto"
+                            });
+                        },
+                        once: true
+                    });
+                }
+
+                // Interactive Hover Micro-interactions
+                document.querySelectorAll('.funnel-card, .outcome-kpi-card').forEach(el => {
+                    el.addEventListener('mouseenter', () => {
+                        gsap.to(el, { y: -4, duration: 0.2, ease: "power1.out", overwrite: "auto" });
+                    });
+                    el.addEventListener('mouseleave', () => {
+                        gsap.to(el, { y: 0, duration: 0.25, ease: "power1.out", overwrite: "auto" });
+                    });
+                });
+            });
+        }
+
+        // Load data automatically when page opens
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                loadPatientJourneyData();
+                setTimeout(initAncGsapAnimations, 150);
+            });
+        } else {
+            loadPatientJourneyData();
+            setTimeout(initAncGsapAnimations, 150);
+        }
+    </script>
+</body>
+</html>

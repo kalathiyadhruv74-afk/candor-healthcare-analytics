@@ -1,0 +1,273 @@
+{
+  "hospital_master_intake": {
+    "ivf_registered_patients": 8113,
+    "ivf_unique_database_ids": 7930,
+    "ivf_treatment_cycles_visits": 73515,
+    "iui_registered_patients": 12303,
+    "iui_unique_database_ids": 11911,
+    "iui_treatment_cycles_visits": 51076,
+    "total_hospital_fertility_cohort": 20416,
+    "total_unique_fertility_patients": 19841
+  },
+  "anc_conversion": {
+    "total_anc_patients": 8051,
+    "total_anc_history_visits": 58882,
+    "total_anc_history_unique_patients": 6475,
+    "total_fertility_converted_to_anc": 5624,
+    "global_fertility_conversion_rate": "28.3%",
+    "ivf_to_anc_converted": 3541,
+    "ivf_to_anc_conversion_rate": "44.7%",
+    "iui_to_anc_converted": 2083,
+    "iui_to_anc_conversion_rate": "17.5%",
+    "direct_maternity_intake": 2427
+  },
+  "pregnancy_outcomes_summary": {
+    "cohort_analyzed": 6475,
+    "live_births_term_deliveries": 2492,
+    "live_birth_rate": "38.5%",
+    "pregnancy_losses_and_failures": 1077,
+    "loss_rate": "16.6%",
+    "ongoing_or_external_maternity": 2906,
+    "ongoing_or_external_rate": "44.9%"
+  },
+  "pregnancy_loss_clinical_reasons": [
+    {
+      "rank": 1,
+      "reason": "Ectopic Pregnancy (Tubal & Extrauterine Implantation)",
+      "patients": 402,
+      "ivf_origin": 196,
+      "ivf_pct": "48.8%",
+      "iui_origin": 104,
+      "iui_pct": "25.9%",
+      "direct_maternity": 102,
+      "direct_pct": "25.4%",
+      "percentage_of_losses": "37.3%",
+      "percentage_of_anc_cohort": "6.2%",
+      "severity": "Emergency Surgical / Medical",
+      "badge_color": "#E11D48",
+      "clinical_mechanism": "Embryo implanted outside the uterine cavity (usually Fallopian tube or cornua). Detected via TVS empty uterine cavity with positive beta-hCG, requiring urgent MTX injection or laparoscopic salpingectomy."
+    },
+    {
+      "rank": 2,
+      "reason": "Missed Abortion (Silent Embryonic Arrest)",
+      "patients": 303,
+      "ivf_origin": 151,
+      "ivf_pct": "49.8%",
+      "iui_origin": 72,
+      "iui_pct": "23.8%",
+      "direct_maternity": 80,
+      "direct_pct": "26.4%",
+      "percentage_of_losses": "28.1%",
+      "percentage_of_anc_cohort": "4.7%",
+      "severity": "High / Early 1st Trimester",
+      "badge_color": "#D97706",
+      "clinical_mechanism": "Fetus stopped growing and cardiac activity ceased without vaginal bleeding or spontaneous uterine expulsion. Confirmed during early 6-8 week transvaginal viability scan."
+    },
+    {
+      "rank": 3,
+      "reason": "Major Congenital & Structural Anomalies",
+      "patients": 287,
+      "ivf_origin": 110,
+      "ivf_pct": "38.3%",
+      "iui_origin": 69,
+      "iui_pct": "24.0%",
+      "direct_maternity": 108,
+      "direct_pct": "37.6%",
+      "percentage_of_losses": "26.6%",
+      "percentage_of_anc_cohort": "4.4%",
+      "severity": "Genetic / Structural Scan Defect",
+      "badge_color": "#7C3AED",
+      "clinical_mechanism": "Lethal developmental anomalies (e.g. neural tube defects, anencephaly, severe hydrocephalus, diaphragmatic hernia) detected on 11-13w NT scan or 18-20w anomaly TIFFA."
+    },
+    {
+      "rank": 4,
+      "reason": "D&E / D&C Surgical Uterine Evacuation",
+      "patients": 135,
+      "ivf_origin": 76,
+      "ivf_pct": "56.3%",
+      "iui_origin": 27,
+      "iui_pct": "20.0%",
+      "direct_maternity": 32,
+      "direct_pct": "23.7%",
+      "percentage_of_losses": "12.5%",
+      "percentage_of_anc_cohort": "2.1%",
+      "severity": "Surgical Intervention",
+      "badge_color": "#EA580C",
+      "clinical_mechanism": "Incomplete or retained non-viable conception products requiring dilatation and evacuation / suction curettage to prevent severe maternal pelvic sepsis and hemorrhage."
+    },
+    {
+      "rank": 5,
+      "reason": "Blighted Ovum (Anembryonic Gestational Sac)",
+      "patients": 90,
+      "ivf_origin": 51,
+      "ivf_pct": "56.7%",
+      "iui_origin": 19,
+      "iui_pct": "21.1%",
+      "direct_maternity": 20,
+      "direct_pct": "22.2%",
+      "percentage_of_losses": "8.4%",
+      "percentage_of_anc_cohort": "1.4%",
+      "severity": "Chromosomal Aneuploidy",
+      "badge_color": "#9333EA",
+      "clinical_mechanism": "Gestational sac implants and produces beta-hCG, but the fetal pole fails to form, primarily caused by embryonic chromosomal numerical abnormalities."
+    },
+    {
+      "rank": 6,
+      "reason": "Fetal Cardiac Arrest / Absence",
+      "patients": 14,
+      "ivf_origin": 8,
+      "ivf_pct": "57.1%",
+      "iui_origin": 4,
+      "iui_pct": "28.6%",
+      "direct_maternity": 2,
+      "direct_pct": "14.3%",
+      "percentage_of_losses": "1.3%",
+      "percentage_of_anc_cohort": "0.2%",
+      "severity": "Fetal Hemodynamic Failure",
+      "badge_color": "#DC2626",
+      "clinical_mechanism": "Cessation of fetal cardiac pulsations (FCP absent) after initially positive heartbeat or failure of embryonic vascular tube pulsation."
+    },
+    {
+      "rank": 7,
+      "reason": "Spontaneous Miscarriage",
+      "patients": 10,
+      "ivf_origin": 5,
+      "ivf_pct": "50.0%",
+      "iui_origin": 1,
+      "iui_pct": "10.0%",
+      "direct_maternity": 4,
+      "direct_pct": "40.0%",
+      "percentage_of_losses": "0.9%",
+      "percentage_of_anc_cohort": "0.15%",
+      "severity": "Spontaneous Expulsion",
+      "badge_color": "#F43F5E",
+      "clinical_mechanism": "Acute onset of pelvic cramping and heavy vaginal bleeding causing spontaneous complete or incomplete passage of gestational tissue."
+    },
+    {
+      "rank": 8,
+      "reason": "Intrauterine Fetal Demise (IUD / Late Stillbirth)",
+      "patients": 4,
+      "ivf_origin": 2,
+      "ivf_pct": "50.0%",
+      "iui_origin": 0,
+      "iui_pct": "0.0%",
+      "direct_maternity": 2,
+      "direct_pct": "50.0%",
+      "percentage_of_losses": "0.4%",
+      "percentage_of_anc_cohort": "0.06%",
+      "severity": "Late 2nd / 3rd Trimester Loss",
+      "badge_color": "#B91C1C",
+      "clinical_mechanism": "Late gestation fetal loss (>20 weeks) secondary to cord accidents, acute placental abruption, or severe maternal preeclampsia."
+    }
+  ],
+  "delivery_outcomes": {
+    "total_deliveries_full_term": 2492,
+    "ivf_delivered_count": 1422,
+    "ivf_anc_to_delivery_rate": "40.2%",
+    "iui_delivered_count": 996,
+    "iui_anc_to_delivery_rate": "28.4%"
+  },
+  "ivf_plan_breakdown": [
+    {
+      "plan": "FET (Frozen Embryo Transfer)",
+      "registered_cohort": 3650,
+      "anc_converted": 1824,
+      "anc_conversion_rate": "50.0%",
+      "delivered": 748,
+      "delivery_rate": "41.0%",
+      "clinical_notes": "Primary clinical workhorse. 'Freeze-All' protocol provides optimal endometrial receptivity with highest delivery success rate."
+    },
+    {
+      "plan": "FET-OD (Donor Oocyte Transfer)",
+      "registered_cohort": 1840,
+      "anc_converted": 798,
+      "anc_conversion_rate": "43.4%",
+      "delivered": 302,
+      "delivery_rate": "37.8%",
+      "clinical_notes": "Overcomes biological ovarian depletion and advanced maternal age (38+) using verified healthy donor oocytes."
+    },
+    {
+      "plan": "FET-ED (Donor Embryo Transfer)",
+      "registered_cohort": 1580,
+      "anc_converted": 792,
+      "anc_conversion_rate": "50.1%",
+      "delivered": 314,
+      "delivery_rate": "39.6%",
+      "clinical_notes": "Indicated for severe bilateral gamete failure (Azoospermia + Menopause/Low AFC); achieves consistent live births."
+    },
+    {
+      "plan": "Pick Up (Fresh Oocyte Retrieval)",
+      "registered_cohort": 1043,
+      "anc_converted": 127,
+      "anc_conversion_rate": "12.2%",
+      "delivered": 58,
+      "delivery_rate": "45.7%",
+      "clinical_notes": "Most fresh cycles are segmented into Freeze-All (FET) to protect patients against OHSS; only optimal fresh cases transfer directly."
+    }
+  ],
+  "iui_plan_breakdown": [
+    {
+      "plan": "Convert to IVF/ICSI",
+      "registered_cohort": 4250,
+      "anc_converted": 1618,
+      "anc_conversion_rate": "38.1%",
+      "delivered": 616,
+      "delivery_rate": "38.1%",
+      "clinical_notes": "Largest single volume driver in IUI registry. Patients with 2-3 failed IUI cycles or tubal/sperm deficits successfully achieve pregnancy upon ART escalation."
+    },
+    {
+      "plan": "Letrozole with Timed Coitus",
+      "registered_cohort": 2860,
+      "anc_converted": 824,
+      "anc_conversion_rate": "28.8%",
+      "delivered": 238,
+      "delivery_rate": "28.9%",
+      "clinical_notes": "First-line oral aromatase inhibitor stimulation with planned home intercourse."
+    },
+    {
+      "plan": "Natural Cycle Tracking",
+      "registered_cohort": 1820,
+      "anc_converted": 546,
+      "anc_conversion_rate": "30.0%",
+      "delivered": 266,
+      "delivery_rate": "48.7%",
+      "clinical_notes": "Unexplained subfertility with normal partners; high delivery rate due to strong baseline ovarian reserve."
+    },
+    {
+      "plan": "Clomiphene Citrate with Coitus",
+      "registered_cohort": 1420,
+      "anc_converted": 435,
+      "anc_conversion_rate": "30.6%",
+      "delivered": 133,
+      "delivery_rate": "30.6%",
+      "clinical_notes": "Standard oral anti-estrogen regimen for ovulatory dysfunctions."
+    },
+    {
+      "plan": "Letrozole (LTZ 5mg Monotherapy)",
+      "registered_cohort": 840,
+      "anc_converted": 408,
+      "anc_conversion_rate": "48.6%",
+      "delivered": 198,
+      "delivery_rate": "48.5%",
+      "clinical_notes": "Proven high single-follicle ovulation rate for PCOS patients."
+    },
+    {
+      "plan": "Letrozole + HMG 75/150 + IUI",
+      "registered_cohort": 613,
+      "anc_converted": 221,
+      "anc_conversion_rate": "36.1%",
+      "delivered": 80,
+      "delivery_rate": "36.2%",
+      "clinical_notes": "Hybrid gonadotropin regimen for multi-follicular development in resistant ovaries."
+    },
+    {
+      "plan": "Clomiphene + HMG Hybrid + IUI",
+      "registered_cohort": 500,
+      "anc_converted": 172,
+      "anc_conversion_rate": "34.4%",
+      "delivered": 59,
+      "delivery_rate": "34.3%",
+      "clinical_notes": "Dual-mechanism stimulation for poor primary oral responders."
+    }
+  ]
+}
