@@ -1,10 +1,8 @@
 {
-  "version": 2,
   "builds": [
     {
-      "src": "candor_ai/wsgi.py",
-      "use": "@vercel/python",
-      "config": { "maxLambdaSize": "15mb", "runtime": "python3.11" }
+      "src": "api/index.py",
+      "use": "@vercel/python"
     },
     {
       "src": "build_files.sh",
@@ -21,7 +19,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "candor_ai/wsgi.py"
+      "dest": "api/index.py"
     }
   ]
 }
