@@ -24,7 +24,6 @@ predictor/analyze_*.py
 predictor/test_payment_link.py
 
 # Static collection & media
-staticfiles/
 media/
 
 # Virtual Environments
