@@ -644,18 +644,17 @@
             background: rgba(15, 23, 42, 0.45);
             backdrop-filter: blur(6px);
             z-index: 9999;
-            display: flex;
+            display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.25s ease;
+            transition: opacity 0.2s ease;
         }
 
         .global-loader.active {
+            display: flex;
             opacity: 1;
-            pointer-events: all;
         }
 
         .loader-card {
@@ -1156,19 +1155,27 @@
 
         function animateValue(elemId, targetVal) {
             const elem = document.getElementById(elemId);
+            if (!elem) return;
             const num = Number(targetVal) || 0;
-            gsap.to({ val: 0 }, {
-                val: num,
-                duration: 0.8,
-                ease: "power2.out",
-                onUpdate: function () {
-                    elem.textContent = formatINR(this.targets()[0].val);
-                }
-            });
+            if (typeof gsap !== 'undefined' && gsap.to) {
+                gsap.to({ val: 0 }, {
+                    val: num,
+                    duration: 0.8,
+                    ease: "power2.out",
+                    onUpdate: function () {
+                        elem.textContent = formatINR(this.targets()[0].val);
+                    }
+                });
+            } else {
+                elem.textContent = formatINR(num);
+            }
         }
 
         function renderMonthlyChart(monthlyTrend) {
-            const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
+            if (typeof Chart === 'undefined') return;
+            const canvas = document.getElementById('monthlyTrendChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
             if (monthlyChartInstance) monthlyChartInstance.destroy();
 
             const labels = monthlyTrend.map(d => d.month);
@@ -1250,7 +1257,10 @@
         }
 
         function renderStreamChart(hc, ph, ret) {
-            const ctx = document.getElementById('streamShareChart').getContext('2d');
+            if (typeof Chart === 'undefined') return;
+            const canvas = document.getElementById('streamShareChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
             if (streamChartInstance) streamChartInstance.destroy();
 
             streamChartInstance = new Chart(ctx, {
