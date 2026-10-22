@@ -275,7 +275,7 @@ def pharmacy_analytics_api(request):
     exclude_gst = request.GET.get("exclude_gst", "1").lower() in ("1", "true", "yes")
     only_profit = request.GET.get("only_profit", "0").lower() in ("1", "true", "yes")
 
-    where_clauses = ["mpi.is_deleted = 0"]
+    where_clauses = ["mpi.is_deleted = 0", "mpi.department_id = 1"]
     params = []
 
     if start_date:
@@ -398,8 +398,8 @@ def pharmacy_analytics_api(request):
         r_cheque_col = "msc.payment_cheque"
         r_neft_col = "msc.payment_neft"
 
-    # Filters for Returns (msc)
-    pr_where = ["1=1"]
+    # Filters for Returns (msc) - Medical Store only (department_id = 1)
+    pr_where = ["msc.department_id = 1"]
     pr_params = []
     if start_date:
         pr_where.append("DATE(msc.date_of_transaction) >= %s")
@@ -1050,8 +1050,8 @@ def collection_analytics_api(request):
         im_where.append("im.payment_method != 2")
     im_where_sql = " AND ".join(im_where)
 
-    # --- 2. PHARMACY COLLECTION FILTERS (Aligned with Pharmacy Report logic: mpi.date_of_transaction) ---
-    ph_where = ["mpi.is_deleted = 0"]
+    # --- 2. PHARMACY COLLECTION FILTERS (Medical Store only: department_id = 1) ---
+    ph_where = ["mpi.is_deleted = 0", "mpi.department_id = 1"]
     ph_params = []
     if start_date:
         ph_where.append("mpi.date_of_transaction >= %s")
@@ -1064,8 +1064,8 @@ def collection_analytics_api(request):
         ph_params.append(branch_id)
     ph_where_sql = " AND ".join(ph_where)
 
-    # --- 3. PHARMACY RETURN FILTERS ---
-    pr_where = ["1=1"]
+    # --- 3. PHARMACY RETURN FILTERS (Medical Store only: department_id = 1) ---
+    pr_where = ["msc.department_id = 1"]
     pr_params = []
     if start_date:
         pr_where.append("DATE(msc.date_of_transaction) >= %s")
