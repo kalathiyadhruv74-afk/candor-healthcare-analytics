@@ -372,39 +372,80 @@ def pharmacy_analytics_api(request):
     metric_bill = profit_col if only_profit else price_col
 
     # Query 1: Overall KPIs and Categorical Income Breakdown
-    kpi_query = f"""
+    # As requested: Pharmacy collection is computed from Sales Register (mpi) minus Sales Return Register (msc).
+    # Without GST uses Taxable amounts (mpi.sell_price_without_gst - msc.price_without_gst).
+    # With GST uses Gross amounts (mpi.sell_price - msc.payable_amount).
+    if exclude_gst:
+        s_price_col = "mpi.sell_price_without_gst"
+        r_price_col = "msc.price_without_gst"
+        s_cash_col = "mpi.payment_cash * (mpi.sell_price_without_gst / NULLIF(mpi.sell_price, 0))"
+        s_upi_col = "mpi.payment_upi * (mpi.sell_price_without_gst / NULLIF(mpi.sell_price, 0))"
+        s_cheque_col = "mpi.payment_cheque * (mpi.sell_price_without_gst / NULLIF(mpi.sell_price, 0))"
+        s_neft_col = "mpi.payment_neft * (mpi.sell_price_without_gst / NULLIF(mpi.sell_price, 0))"
+        r_cash_col = "msc.payment_cash * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))"
+        r_upi_col = "msc.payment_upi * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))"
+        r_cheque_col = "msc.payment_cheque * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))"
+        r_neft_col = "msc.payment_neft * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))"
+    else:
+        s_price_col = "mpi.sell_price"
+        r_price_col = "msc.payable_amount"
+        s_cash_col = "mpi.payment_cash"
+        s_upi_col = "mpi.payment_upi"
+        s_cheque_col = "mpi.payment_cheque"
+        s_neft_col = "mpi.payment_neft"
+        r_cash_col = "msc.payment_cash"
+        r_upi_col = "msc.payment_upi"
+        r_cheque_col = "msc.payment_cheque"
+        r_neft_col = "msc.payment_neft"
+
+    # Filters for Returns (msc)
+    pr_where = ["1=1"]
+    pr_params = []
+    if start_date:
+        pr_where.append("DATE(msc.date_of_transaction) >= %s")
+        pr_params.append(start_date)
+    if end_date:
+        pr_where.append("DATE(msc.date_of_transaction) <= %s")
+        pr_params.append(end_date)
+    if branch_id:
+        pr_where.append("msc.branch_id = %s")
+        pr_params.append(branch_id)
+    pr_where_sql = " AND ".join(pr_where)
+
+    # 1A. Sales Register Aggregate
+    kpi_sales_query = f"""
         SELECT 
             COUNT(DISTINCT mpi.id) as total_invoices,
-            COALESCE(SUM({metric_bill}), 0) as total_bill_amount,
-            COALESCE(SUM({metric_collection}), 0) as total_pharmacy_collection,
-            COALESCE(SUM({cash_calc}), 0) as total_cash,
-            COALESCE(SUM({upi_calc}), 0) as total_upi,
-            COALESCE(SUM({cheque_calc}), 0) as total_cheque,
-            COALESCE(SUM({neft_calc}), 0) as total_neft,
+            COALESCE(SUM({price_col}), 0) as total_bill_amount,
+            COALESCE(SUM({s_price_col}), 0) as sales_collection,
+            COALESCE(SUM({s_cash_col}), 0) as sales_cash,
+            COALESCE(SUM({s_upi_col}), 0) as sales_upi,
+            COALESCE(SUM({s_cheque_col}), 0) as sales_cheque,
+            COALESCE(SUM({s_neft_col}), 0) as sales_neft,
             
-            -- IVF Medicine Income / Profit
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN {metric_collection} ELSE 0 END), 0) as ivf_collection,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN {metric_bill} ELSE 0 END), 0) as ivf_bill,
+            -- IVF
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN {s_price_col} ELSE 0 END), 0) as ivf_sales,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN {price_col} ELSE 0 END), 0) as ivf_bill,
             COUNT(DISTINCT CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN mpi.id ELSE NULL END) as ivf_invoices,
 
-            -- INF Medicine Income / Profit
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN {metric_collection} ELSE 0 END), 0) as inf_collection,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN {metric_bill} ELSE 0 END), 0) as inf_bill,
+            -- INF
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN {s_price_col} ELSE 0 END), 0) as inf_sales,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN {price_col} ELSE 0 END), 0) as inf_bill,
             COUNT(DISTINCT CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN mpi.id ELSE NULL END) as inf_invoices,
 
-            -- IUI Medicine Income / Profit
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN {metric_collection} ELSE 0 END), 0) as iui_collection,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN {metric_bill} ELSE 0 END), 0) as iui_bill,
+            -- IUI
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN {s_price_col} ELSE 0 END), 0) as iui_sales,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN {price_col} ELSE 0 END), 0) as iui_bill,
             COUNT(DISTINCT CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN mpi.id ELSE NULL END) as iui_invoices,
 
-            -- ANC Medicine Income / Profit
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN {metric_collection} ELSE 0 END), 0) as anc_collection,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN {metric_bill} ELSE 0 END), 0) as anc_bill,
+            -- ANC
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN {s_price_col} ELSE 0 END), 0) as anc_sales,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN {price_col} ELSE 0 END), 0) as anc_bill,
             COUNT(DISTINCT CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN mpi.id ELSE NULL END) as anc_invoices,
 
-            -- GYNEC Medicine Income / Profit
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN {metric_collection} ELSE 0 END), 0) as gynec_collection,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN {metric_bill} ELSE 0 END), 0) as gynec_bill,
+            -- GYNEC
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN {s_price_col} ELSE 0 END), 0) as gynec_sales,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN {price_col} ELSE 0 END), 0) as gynec_bill,
             COUNT(DISTINCT CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN mpi.id ELSE NULL END) as gynec_invoices,
 
             -- Other / General
@@ -414,14 +455,14 @@ def pharmacy_analytics_api(request):
                                        AND LOWER(c.name) NOT LIKE '%%iui%%' 
                                        AND LOWER(c.name) NOT LIKE '%%anc%%' 
                                        AND LOWER(c.name) NOT LIKE '%%gynec%%')
-                              THEN {metric_collection} ELSE 0 END), 0) as other_collection,
+                              THEN {s_price_col} ELSE 0 END), 0) as other_sales,
             COALESCE(SUM(CASE WHEN c.name IS NULL 
                                    OR (LOWER(c.name) NOT LIKE '%%ivf%%' 
                                        AND LOWER(c.name) NOT LIKE '%%inf%%' 
                                        AND LOWER(c.name) NOT LIKE '%%iui%%' 
                                        AND LOWER(c.name) NOT LIKE '%%anc%%' 
                                        AND LOWER(c.name) NOT LIKE '%%gynec%%')
-                              THEN {metric_bill} ELSE 0 END), 0) as other_bill,
+                              THEN {price_col} ELSE 0 END), 0) as other_bill,
             COUNT(DISTINCT CASE WHEN c.name IS NULL 
                                      OR (LOWER(c.name) NOT LIKE '%%ivf%%' 
                                          AND LOWER(c.name) NOT LIKE '%%inf%%' 
@@ -430,57 +471,93 @@ def pharmacy_analytics_api(request):
                                          AND LOWER(c.name) NOT LIKE '%%gynec%%')
                                 THEN mpi.id ELSE NULL END) as other_invoices,
             
-            -- Auxiliary Raw Totals for Margin Reference
-            COALESCE(SUM({paid_calc}), 0) as raw_total_collection,
-            COALESCE(SUM({price_col}), 0) as raw_total_bill,
-            COALESCE(SUM({profit_collected_calc}), 0) as raw_profit_collected,
+            -- Auxiliary Profit Reference
             COALESCE(SUM({profit_col}), 0) as raw_profit_billed
         FROM medication_patients_invoices mpi
         LEFT JOIN category c ON mpi.category_id = c.id
-        LEFT JOIN medication_payment_history mph ON mph.medication_patients_invoice_id = mpi.id
         WHERE {where_sql}
     """
-    cursor.execute(kpi_query, params)
-    krow = cursor.fetchone()
+    cursor.execute(kpi_sales_query, params)
+    s_row = cursor.fetchone()
 
-    total_invoices = int(krow[0] or 0)
-    total_bill_amount = float(krow[1] or 0.0)
-    total_pharmacy_collection = float(krow[2] or 0.0)
-    total_cash = float(krow[3] or 0.0)
-    total_upi = float(krow[4] or 0.0)
-    total_cheque = float(krow[5] or 0.0)
-    total_neft = float(krow[6] or 0.0)
+    # 1B. Sales Return Register Aggregate
+    kpi_return_query = f"""
+        SELECT 
+            COUNT(DISTINCT msc.id) as return_notes,
+            COALESCE(SUM({r_price_col}), 0) as ret_collection,
+            COALESCE(SUM({r_cash_col}), 0) as ret_cash,
+            COALESCE(SUM({r_upi_col}), 0) as ret_upi,
+            COALESCE(SUM({r_cheque_col}), 0) as ret_cheque,
+            COALESCE(SUM({r_neft_col}), 0) as ret_neft,
+            
+            -- IVF Returns
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN {r_price_col} ELSE 0 END), 0) as ivf_ret,
+            -- INF Returns
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN {r_price_col} ELSE 0 END), 0) as inf_ret,
+            -- IUI Returns
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN {r_price_col} ELSE 0 END), 0) as iui_ret,
+            -- ANC Returns
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN {r_price_col} ELSE 0 END), 0) as anc_ret,
+            -- GYNEC Returns
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN {r_price_col} ELSE 0 END), 0) as gynec_ret,
+            -- Other Returns
+            COALESCE(SUM(CASE WHEN c.name IS NULL 
+                                   OR (LOWER(c.name) NOT LIKE '%%ivf%%' 
+                                       AND LOWER(c.name) NOT LIKE '%%inf%%' 
+                                       AND LOWER(c.name) NOT LIKE '%%iui%%' 
+                                       AND LOWER(c.name) NOT LIKE '%%anc%%' 
+                                       AND LOWER(c.name) NOT LIKE '%%gynec%%')
+                              THEN {r_price_col} ELSE 0 END), 0) as other_ret
+        FROM medication_sales_credit msc
+        LEFT JOIN medication_patients_invoices mpi ON msc.medication_patients_invoice_id = mpi.id
+        LEFT JOIN category c ON mpi.category_id = c.id
+        WHERE {pr_where_sql}
+    """
+    cursor.execute(kpi_return_query, pr_params)
+    r_row = cursor.fetchone()
 
-    ivf_income = float(krow[7] or 0.0)
-    ivf_bill = float(krow[8] or 0.0)
-    ivf_inv_cnt = int(krow[9] or 0)
+    total_invoices = int(s_row[0] or 0)
+    total_bill_amount = float(s_row[1] or 0.0)
+    
+    # Net Pharmacy Collection = Sales Register - Sales Return Register
+    sales_coll = float(s_row[2] or 0.0)
+    ret_coll = float(r_row[1] or 0.0)
+    total_pharmacy_collection = round(sales_coll - ret_coll, 2)
 
-    inf_income = float(krow[10] or 0.0)
-    inf_bill = float(krow[11] or 0.0)
-    inf_inv_cnt = int(krow[12] or 0)
+    total_cash = max(0.0, round(float(s_row[3] or 0.0) - float(r_row[2] or 0.0), 2))
+    total_upi = max(0.0, round(float(s_row[4] or 0.0) - float(r_row[3] or 0.0), 2))
+    total_cheque = max(0.0, round(float(s_row[5] or 0.0) - float(r_row[4] or 0.0), 2))
+    total_neft = max(0.0, round(float(s_row[6] or 0.0) - float(r_row[5] or 0.0), 2))
 
-    iui_income = float(krow[13] or 0.0)
-    iui_bill = float(krow[14] or 0.0)
-    iui_inv_cnt = int(krow[15] or 0)
+    ivf_income = round(float(s_row[7] or 0.0) - float(r_row[6] or 0.0), 2)
+    ivf_bill = float(s_row[8] or 0.0)
+    ivf_inv_cnt = int(s_row[9] or 0)
 
-    anc_income = float(krow[16] or 0.0)
-    anc_bill = float(krow[17] or 0.0)
-    anc_inv_cnt = int(krow[18] or 0)
+    inf_income = round(float(s_row[10] or 0.0) - float(r_row[7] or 0.0), 2)
+    inf_bill = float(s_row[11] or 0.0)
+    inf_inv_cnt = int(s_row[12] or 0)
 
-    gynec_income = float(krow[19] or 0.0)
-    gynec_bill = float(krow[20] or 0.0)
-    gynec_inv_cnt = int(krow[21] or 0)
+    iui_income = round(float(s_row[13] or 0.0) - float(r_row[8] or 0.0), 2)
+    iui_bill = float(s_row[14] or 0.0)
+    iui_inv_cnt = int(s_row[15] or 0)
 
-    other_income = float(krow[22] or 0.0)
-    other_bill = float(krow[23] or 0.0)
-    other_inv_cnt = int(krow[24] or 0)
+    anc_income = round(float(s_row[16] or 0.0) - float(r_row[9] or 0.0), 2)
+    anc_bill = float(s_row[17] or 0.0)
+    anc_inv_cnt = int(s_row[18] or 0)
 
-    raw_total_collection = float(krow[25] or 0.0)
-    raw_total_bill = float(krow[26] or 0.0)
-    raw_profit_collected = float(krow[27] or 0.0)
-    raw_profit_billed = float(krow[28] or 0.0)
+    gynec_income = round(float(s_row[19] or 0.0) - float(r_row[10] or 0.0), 2)
+    gynec_bill = float(s_row[20] or 0.0)
+    gynec_inv_cnt = int(s_row[21] or 0)
 
-    profit_margin_pct = round((raw_profit_collected / raw_total_collection * 100), 1) if raw_total_collection > 0 else 0.0
+    other_income = round(float(s_row[22] or 0.0) - float(r_row[11] or 0.0), 2)
+    other_bill = float(s_row[23] or 0.0)
+    other_inv_cnt = int(s_row[24] or 0)
+
+    raw_total_collection = total_pharmacy_collection
+    raw_total_bill = total_bill_amount
+    raw_profit_billed = float(s_row[25] or 0.0)
+    raw_profit_collected = raw_profit_billed
+    profit_margin_pct = round((raw_profit_billed / raw_total_collection * 100), 1) if raw_total_collection > 0 else 0.0
 
     # Categories list with percentage share
     prefix = "Net Profit" if only_profit else "Medicine Income"
@@ -553,74 +630,166 @@ def pharmacy_analytics_api(request):
         }
     ]
 
-    # Query 2: Monthly Timeline Trend
-    monthly_query = f"""
+    # Query 2: Monthly Timeline Trend (Net = Sales Register - Return Register)
+    monthly_sales_query = f"""
         SELECT 
             DATE_FORMAT(mpi.date_of_transaction, '%%Y-%%m') as month_str,
             COUNT(DISTINCT mpi.id) as total_invoices,
-            COALESCE(SUM({metric_collection}), 0) as total_collection,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN {metric_collection} ELSE 0 END), 0) as ivf_collection,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN {metric_collection} ELSE 0 END), 0) as inf_collection,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN {metric_collection} ELSE 0 END), 0) as iui_collection,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN {metric_collection} ELSE 0 END), 0) as anc_collection,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN {metric_collection} ELSE 0 END), 0) as gynec_collection
+            COALESCE(SUM({s_price_col}), 0) as total_sales,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN {s_price_col} ELSE 0 END), 0) as ivf_sales,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN {s_price_col} ELSE 0 END), 0) as inf_sales,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN {s_price_col} ELSE 0 END), 0) as iui_sales,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN {s_price_col} ELSE 0 END), 0) as anc_sales,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN {s_price_col} ELSE 0 END), 0) as gynec_sales
         FROM medication_patients_invoices mpi
         LEFT JOIN category c ON mpi.category_id = c.id
-        LEFT JOIN medication_payment_history mph ON mph.medication_patients_invoice_id = mpi.id
         WHERE {where_sql} AND mpi.date_of_transaction IS NOT NULL
         GROUP BY month_str
         ORDER BY month_str ASC
     """
-    cursor.execute(monthly_query, params)
-    monthly_trend = []
-    for mr in cursor.fetchall():
-        monthly_trend.append({
-            "month": mr[0],
+    cursor.execute(monthly_sales_query, params)
+    monthly_sales_map = {
+        mr[0]: {
             "invoices": int(mr[1] or 0),
-            "total_collection": float(mr[2] or 0.0),
-            "ivf_income": float(mr[3] or 0.0),
-            "inf_income": float(mr[4] or 0.0),
-            "iui_income": float(mr[5] or 0.0),
-            "anc_income": float(mr[6] or 0.0),
-            "gynec_income": float(mr[7] or 0.0)
+            "sales": float(mr[2] or 0.0),
+            "ivf": float(mr[3] or 0.0),
+            "inf": float(mr[4] or 0.0),
+            "iui": float(mr[5] or 0.0),
+            "anc": float(mr[6] or 0.0),
+            "gynec": float(mr[7] or 0.0),
+        }
+        for mr in cursor.fetchall()
+    }
+
+    monthly_ret_query = f"""
+        SELECT 
+            DATE_FORMAT(msc.date_of_transaction, '%%Y-%%m') as month_str,
+            COALESCE(SUM({r_price_col}), 0) as total_ret,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN {r_price_col} ELSE 0 END), 0) as ivf_ret,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN {r_price_col} ELSE 0 END), 0) as inf_ret,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN {r_price_col} ELSE 0 END), 0) as iui_ret,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN {r_price_col} ELSE 0 END), 0) as anc_ret,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN {r_price_col} ELSE 0 END), 0) as gynec_ret
+        FROM medication_sales_credit msc
+        LEFT JOIN medication_patients_invoices mpi ON msc.medication_patients_invoice_id = mpi.id
+        LEFT JOIN category c ON mpi.category_id = c.id
+        WHERE {pr_where_sql} AND msc.date_of_transaction IS NOT NULL
+        GROUP BY month_str
+        ORDER BY month_str ASC
+    """
+    cursor.execute(monthly_ret_query, pr_params)
+    monthly_ret_map = {
+        mr[0]: {
+            "ret": float(mr[1] or 0.0),
+            "ivf": float(mr[2] or 0.0),
+            "inf": float(mr[3] or 0.0),
+            "iui": float(mr[4] or 0.0),
+            "anc": float(mr[5] or 0.0),
+            "gynec": float(mr[6] or 0.0),
+        }
+        for mr in cursor.fetchall()
+    }
+
+    all_months = sorted(list(set(list(monthly_sales_map.keys()) + list(monthly_ret_map.keys()))))
+    monthly_trend = []
+    for ym in all_months:
+        s_m = monthly_sales_map.get(ym, {"invoices": 0, "sales": 0, "ivf": 0, "inf": 0, "iui": 0, "anc": 0, "gynec": 0})
+        r_m = monthly_ret_map.get(ym, {"ret": 0, "ivf": 0, "inf": 0, "iui": 0, "anc": 0, "gynec": 0})
+        monthly_trend.append({
+            "month": ym,
+            "invoices": s_m["invoices"],
+            "total_collection": round(s_m["sales"] - r_m["ret"], 2),
+            "ivf_income": round(s_m["ivf"] - r_m["ivf"], 2),
+            "inf_income": round(s_m["inf"] - r_m["inf"], 2),
+            "iui_income": round(s_m["iui"] - r_m["iui"], 2),
+            "anc_income": round(s_m["anc"] - r_m["anc"], 2),
+            "gynec_income": round(s_m["gynec"] - r_m["gynec"], 2)
         })
 
-    # Query 3: Branch Breakdown
-    branch_query = f"""
+    # Query 3: Branch Breakdown (Net = Sales Register - Return Register)
+    branch_sales_query = f"""
         SELECT 
             mpi.branch_id,
             COALESCE(b.name, CONCAT('Branch ', mpi.branch_id)) as branch_name,
             COUNT(DISTINCT mpi.id) as total_invoices,
-            COALESCE(SUM({metric_collection}), 0) as total_collection,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN {metric_collection} ELSE 0 END), 0) as ivf_income,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN {metric_collection} ELSE 0 END), 0) as inf_income,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN {metric_collection} ELSE 0 END), 0) as iui_income,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN {metric_collection} ELSE 0 END), 0) as anc_income,
-            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN {metric_collection} ELSE 0 END), 0) as gynec_income
+            COALESCE(SUM({s_price_col}), 0) as total_sales,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN {s_price_col} ELSE 0 END), 0) as ivf_income,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN {s_price_col} ELSE 0 END), 0) as inf_income,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN {s_price_col} ELSE 0 END), 0) as iui_income,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN {s_price_col} ELSE 0 END), 0) as anc_income,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN {s_price_col} ELSE 0 END), 0) as gynec_income
         FROM medication_patients_invoices mpi
         LEFT JOIN category c ON mpi.category_id = c.id
-        LEFT JOIN medication_payment_history mph ON mph.medication_patients_invoice_id = mpi.id
         LEFT JOIN branch b ON mpi.branch_id = b.id
         WHERE {where_sql}
         GROUP BY mpi.branch_id, b.name
-        ORDER BY total_collection DESC
     """
-    cursor.execute(branch_query, params)
-    branch_breakdown = []
-    for br in cursor.fetchall():
-        b_coll = float(br[3] or 0.0)
-        branch_breakdown.append({
-            "branch_id": br[0],
-            "branch_name": br[1],
+    cursor.execute(branch_sales_query, params)
+    branch_sales_map = {
+        br[0]: {
+            "name": br[1],
             "invoices": int(br[2] or 0),
+            "sales": float(br[3] or 0.0),
+            "ivf": float(br[4] or 0.0),
+            "inf": float(br[5] or 0.0),
+            "iui": float(br[6] or 0.0),
+            "anc": float(br[7] or 0.0),
+            "gynec": float(br[8] or 0.0),
+        }
+        for br in cursor.fetchall()
+    }
+
+    branch_ret_query = f"""
+        SELECT 
+            msc.branch_id,
+            COALESCE(b.name, CONCAT('Branch ', msc.branch_id)) as branch_name,
+            COALESCE(SUM({r_price_col}), 0) as total_ret,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%ivf%%' THEN {r_price_col} ELSE 0 END), 0) as ivf_ret,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%inf%%' THEN {r_price_col} ELSE 0 END), 0) as inf_ret,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%iui%%' THEN {r_price_col} ELSE 0 END), 0) as iui_ret,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%anc%%' THEN {r_price_col} ELSE 0 END), 0) as anc_ret,
+            COALESCE(SUM(CASE WHEN LOWER(c.name) LIKE '%%gynec%%' THEN {r_price_col} ELSE 0 END), 0) as gynec_ret
+        FROM medication_sales_credit msc
+        LEFT JOIN medication_patients_invoices mpi ON msc.medication_patients_invoice_id = mpi.id
+        LEFT JOIN category c ON mpi.category_id = c.id
+        LEFT JOIN branch b ON msc.branch_id = b.id
+        WHERE {pr_where_sql}
+        GROUP BY msc.branch_id, b.name
+    """
+    cursor.execute(branch_ret_query, pr_params)
+    branch_ret_map = {
+        br[0]: {
+            "name": br[1],
+            "ret": float(br[2] or 0.0),
+            "ivf": float(br[3] or 0.0),
+            "inf": float(br[4] or 0.0),
+            "iui": float(br[5] or 0.0),
+            "anc": float(br[6] or 0.0),
+            "gynec": float(br[7] or 0.0),
+        }
+        for br in cursor.fetchall()
+    }
+
+    all_branches_ids = sorted(list(set(list(branch_sales_map.keys()) + list(branch_ret_map.keys()))))
+    branch_breakdown = []
+    for bid in all_branches_ids:
+        bs = branch_sales_map.get(bid, {"name": f"Branch {bid}", "invoices": 0, "sales": 0, "ivf": 0, "inf": 0, "iui": 0, "anc": 0, "gynec": 0})
+        br = branch_ret_map.get(bid, {"name": bs["name"], "ret": 0, "ivf": 0, "inf": 0, "iui": 0, "anc": 0, "gynec": 0})
+        b_name = bs["name"] or br["name"] or f"Branch {bid}"
+        b_coll = round(bs["sales"] - br["ret"], 2)
+        branch_breakdown.append({
+            "branch_id": bid,
+            "branch_name": b_name,
+            "invoices": bs["invoices"],
             "total_collection": b_coll,
-            "ivf_income": float(br[4] or 0.0),
-            "inf_income": float(br[5] or 0.0),
-            "iui_income": float(br[6] or 0.0),
-            "anc_income": float(br[7] or 0.0),
-            "gynec_income": float(br[8] or 0.0),
+            "ivf_income": round(bs["ivf"] - br["ivf"], 2),
+            "inf_income": round(bs["inf"] - br["inf"], 2),
+            "iui_income": round(bs["iui"] - br["iui"], 2),
+            "anc_income": round(bs["anc"] - br["anc"], 2),
+            "gynec_income": round(bs["gynec"] - br["gynec"], 2),
             "share_pct": round((b_coll / total_pharmacy_collection * 100), 1) if total_pharmacy_collection > 0 else 0
         })
+    branch_breakdown.sort(key=lambda x: x["total_collection"], reverse=True)
 
     # Query 4: Detailed Invoice Records (Filtered)
     detail_where = list(where_clauses)
@@ -1028,28 +1197,37 @@ def collection_analytics_api(request):
     combined_hc_neft = round(hc_neft + ac_neft + ei_neft + im_neft, 2)
     combined_hc_other = round(hc_other + ac_other + ei_other + im_other, 2)
 
-    # --- EXECUTE PHARMACY COLLECTION AGGREGATE ---
+    # --- EXECUTE PHARMACY COLLECTION AGGREGATE (Sales Register: mpi) ---
+    # Without GST: mpi.sell_price_without_gst
+    # With GST: mpi.sell_price
     if exclude_gst:
-        ph_factor = """
-            CASE 
-                WHEN mpi.sell_price > 0 AND mpi.sell_price_without_gst > 0 
-                THEN (mpi.sell_price_without_gst / mpi.sell_price)
-                ELSE 1.0
-            END
-        """
+        if exclude_cash:
+            ph_sales_metric = "mpi.payment_upi * (mpi.sell_price_without_gst / NULLIF(mpi.sell_price, 0)) + mpi.payment_cheque * (mpi.sell_price_without_gst / NULLIF(mpi.sell_price, 0)) + mpi.payment_neft * (mpi.sell_price_without_gst / NULLIF(mpi.sell_price, 0))"
+        else:
+            ph_sales_metric = "mpi.sell_price_without_gst"
+        ph_cash_metric = "0.0" if exclude_cash else "mpi.payment_cash * (mpi.sell_price_without_gst / NULLIF(mpi.sell_price, 0))"
+        ph_upi_metric = "mpi.payment_upi * (mpi.sell_price_without_gst / NULLIF(mpi.sell_price, 0))"
+        ph_cheque_metric = "mpi.payment_cheque * (mpi.sell_price_without_gst / NULLIF(mpi.sell_price, 0))"
+        ph_neft_metric = "mpi.payment_neft * (mpi.sell_price_without_gst / NULLIF(mpi.sell_price, 0))"
     else:
-        ph_factor = "1.0"
+        if exclude_cash:
+            ph_sales_metric = "(mpi.payment_upi + mpi.payment_cheque + mpi.payment_neft)"
+        else:
+            ph_sales_metric = "mpi.sell_price"
+        ph_cash_metric = "0.0" if exclude_cash else "mpi.payment_cash"
+        ph_upi_metric = "mpi.payment_upi"
+        ph_cheque_metric = "mpi.payment_cheque"
+        ph_neft_metric = "mpi.payment_neft"
 
     ph_sql = f"""
         SELECT 
-            SUM({ph_modes_expr} * ({ph_factor})) as total_pharmacy,
-            COUNT(DISTINCT CASE WHEN {ph_modes_expr} > 0 THEN mpi.id ELSE NULL END) as count_pharmacy,
-            SUM(COALESCE(mph.payment_cash, 0) * ({ph_factor})) as cash_amt,
-            SUM(COALESCE(mph.payment_upi, 0) * ({ph_factor})) as upi_amt,
-            SUM(COALESCE(mph.payment_cheque, 0) * ({ph_factor})) as cheque_amt,
-            SUM(COALESCE(mph.payment_neft, 0) * ({ph_factor})) as neft_amt
+            COALESCE(SUM({ph_sales_metric}), 0) as total_pharmacy,
+            COUNT(DISTINCT mpi.id) as count_pharmacy,
+            COALESCE(SUM({ph_cash_metric}), 0) as cash_amt,
+            COALESCE(SUM({ph_upi_metric}), 0) as upi_amt,
+            COALESCE(SUM({ph_cheque_metric}), 0) as cheque_amt,
+            COALESCE(SUM({ph_neft_metric}), 0) as neft_amt
         FROM medication_patients_invoices mpi
-        LEFT JOIN medication_payment_history mph ON mph.medication_patients_invoice_id = mpi.id
         WHERE {ph_where_sql}
     """
     cursor.execute(ph_sql, ph_params)
@@ -1061,57 +1239,39 @@ def collection_analytics_api(request):
     ph_cheque = float(ph_row[4] or 0.0)
     ph_neft = float(ph_row[5] or 0.0)
 
-    # --- EXECUTE PHARMACY RETURN AGGREGATE ---
+    # --- EXECUTE PHARMACY RETURN AGGREGATE (Sales Return Register: msc) ---
+    # Without GST: msc.price_without_gst
+    # With GST: msc.payable_amount
     if exclude_gst:
         if exclude_cash:
-            pr_sql = f"""
-                SELECT 
-                    SUM(msc.price_without_gst * {pr_non_cash_ratio}) as total_return,
-                    COUNT(CASE WHEN {pr_modes_expr} > 0 THEN 1 END) as count_return,
-                    0.0 as cash_amt,
-                    SUM(msc.payment_upi * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))) as upi_amt,
-                    SUM(msc.payment_cheque * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))) as cheque_amt,
-                    SUM(msc.payment_neft * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))) as neft_amt
-                FROM medication_sales_credit msc
-                WHERE {pr_where_sql}
-            """
+            pr_sales_metric = "msc.payment_upi * (msc.price_without_gst / NULLIF(msc.payable_amount, 0)) + msc.payment_cheque * (msc.price_without_gst / NULLIF(msc.payable_amount, 0)) + msc.payment_neft * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))"
         else:
-            pr_sql = f"""
-                SELECT 
-                    SUM(msc.price_without_gst) as total_return,
-                    COUNT(*) as count_return,
-                    SUM(msc.payment_cash * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))) as cash_amt,
-                    SUM(msc.payment_upi * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))) as upi_amt,
-                    SUM(msc.payment_cheque * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))) as cheque_amt,
-                    SUM(msc.payment_neft * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))) as neft_amt
-                FROM medication_sales_credit msc
-                WHERE {pr_where_sql}
-            """
+            pr_sales_metric = "msc.price_without_gst"
+        pr_cash_metric = "0.0" if exclude_cash else "msc.payment_cash * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))"
+        pr_upi_metric = "msc.payment_upi * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))"
+        pr_cheque_metric = "msc.payment_cheque * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))"
+        pr_neft_metric = "msc.payment_neft * (msc.price_without_gst / NULLIF(msc.payable_amount, 0))"
     else:
         if exclude_cash:
-            pr_sql = f"""
-                SELECT 
-                    SUM({pr_modes_expr}) as total_return,
-                    COUNT(CASE WHEN {pr_modes_expr} > 0 THEN 1 END) as count_return,
-                    0.0 as cash_amt,
-                    SUM(msc.payment_upi) as upi_amt,
-                    SUM(msc.payment_cheque) as cheque_amt,
-                    SUM(msc.payment_neft) as neft_amt
-                FROM medication_sales_credit msc
-                WHERE {pr_where_sql}
-            """
+            pr_sales_metric = "(msc.payment_upi + msc.payment_cheque + msc.payment_neft)"
         else:
-            pr_sql = f"""
-                SELECT 
-                    SUM(msc.payment_cash + msc.payment_upi + msc.payment_cheque + msc.payment_neft) as total_return,
-                    COUNT(*) as count_return,
-                    SUM(msc.payment_cash) as cash_amt,
-                    SUM(msc.payment_upi) as upi_amt,
-                    SUM(msc.payment_cheque) as cheque_amt,
-                    SUM(msc.payment_neft) as neft_amt
-                FROM medication_sales_credit msc
-                WHERE {pr_where_sql}
-            """
+            pr_sales_metric = "msc.payable_amount"
+        pr_cash_metric = "0.0" if exclude_cash else "msc.payment_cash"
+        pr_upi_metric = "msc.payment_upi"
+        pr_cheque_metric = "msc.payment_cheque"
+        pr_neft_metric = "msc.payment_neft"
+
+    pr_sql = f"""
+        SELECT 
+            COALESCE(SUM({pr_sales_metric}), 0) as total_return,
+            COUNT(DISTINCT msc.id) as count_return,
+            COALESCE(SUM({pr_cash_metric}), 0) as cash_amt,
+            COALESCE(SUM({pr_upi_metric}), 0) as upi_amt,
+            COALESCE(SUM({pr_cheque_metric}), 0) as cheque_amt,
+            COALESCE(SUM({pr_neft_metric}), 0) as neft_amt
+        FROM medication_sales_credit msc
+        WHERE {pr_where_sql}
+    """
     cursor.execute(pr_sql, pr_params)
     pr_row = cursor.fetchone() or (0, 0, 0, 0, 0, 0)
     pr_return = float(pr_row[0] or 0.0)
@@ -1122,22 +1282,22 @@ def collection_analytics_api(request):
     pr_neft = float(pr_row[5] or 0.0)
 
     # --- CORE KPI METRICS REQUESTED BY USER ---
-    # 1. Total Collection (Gross Combined Collection)
+    # 1. Total Collection (Gross Combined Collection: Healthcare + Pharmacy Sales Register)
     total_gross_collection = round(combined_hc_gross + ph_gross, 2)
     # 2. Total Healthcare Collection (Indoor deposits + OPD + Embryology + Income Manager)
     total_healthcare_collection = combined_hc_gross
-    # 3. Total Pharmacy Collection
-    total_pharmacy_collection = round(ph_gross, 2)
-    # 4. PAYMENT RETURN (Hospital Refund/Debit + Pharmacy Credit Note/Sales Return)
+    # 3. Total Pharmacy Collection (Net = Sales Register - Sales Return Register)
+    total_pharmacy_collection = round(ph_gross - pr_return, 2)
+    # 4. PAYMENT RETURN (Hospital Refund/Debit + Pharmacy Credit Note/Sales Return Register)
     total_payment_return = round(hc_return + pr_return, 2)
     # 5. Collection (Net Final In-Hand Collection)
     net_collection = round(total_gross_collection - total_payment_return, 2)
 
     # Payment modes summary (Net)
-    total_cash_net = 0.0 if exclude_cash else round((combined_hc_cash + ph_cash) - (pr_cash), 2)
-    total_upi_net = round((combined_hc_upi + ph_upi) - (pr_upi), 2)
-    total_cheque_net = round((combined_hc_cheque + ph_cheque) - (pr_cheque), 2)
-    total_neft_net = round((combined_hc_neft + ph_neft) - (pr_neft), 2)
+    total_cash_net = 0.0 if exclude_cash else round(max(0.0, (combined_hc_cash + ph_cash) - pr_cash), 2)
+    total_upi_net = round(max(0.0, (combined_hc_upi + ph_upi) - pr_upi), 2)
+    total_cheque_net = round(max(0.0, (combined_hc_cheque + ph_cheque) - pr_cheque), 2)
+    total_neft_net = round(max(0.0, (combined_hc_neft + ph_neft) - pr_neft), 2)
     total_other_net = round(combined_hc_other, 2)
 
     # --- MONTHLY TRENDS ---
@@ -1200,34 +1360,25 @@ def collection_analytics_api(request):
             hc_monthly[ym] = {"gross_hc": 0.0, "return_hc": 0.0}
         hc_monthly[ym]["gross_hc"] += amt
 
-    # Monthly pharmacy (aligned to mpi.date_of_transaction)
+    # Monthly pharmacy (Sales Register: mpi)
     cursor.execute(f"""
         SELECT 
             DATE_FORMAT(mpi.date_of_transaction, '%%Y-%%m') as ym,
-            SUM({ph_modes_expr} * ({ph_factor})) as gross_ph
+            COALESCE(SUM({ph_sales_metric}), 0) as gross_ph
         FROM medication_patients_invoices mpi
-        LEFT JOIN medication_payment_history mph ON mph.medication_patients_invoice_id = mpi.id
         WHERE {ph_where_sql} AND mpi.date_of_transaction IS NOT NULL
         GROUP BY ym
         ORDER BY ym ASC
     """, ph_params)
     ph_monthly = {r[0]: float(r[1] or 0) for r in cursor.fetchall()}
 
-    # Monthly pharmacy return
-    if exclude_gst:
-        if exclude_cash:
-            pr_monthly_expr = f"SUM(msc.price_without_gst * {pr_non_cash_ratio})"
-        else:
-            pr_monthly_expr = "SUM(msc.price_without_gst)"
-    else:
-        pr_monthly_expr = f"SUM({pr_modes_expr})"
-
+    # Monthly pharmacy return (Sales Return Register: msc)
     cursor.execute(f"""
         SELECT 
             DATE_FORMAT(msc.date_of_transaction, '%%Y-%%m') as ym,
-            {pr_monthly_expr} as return_ph
+            COALESCE(SUM({pr_sales_metric}), 0) as return_ph
         FROM medication_sales_credit msc
-        WHERE {pr_where_sql}
+        WHERE {pr_where_sql} AND msc.date_of_transaction IS NOT NULL
         GROUP BY ym
         ORDER BY ym ASC
     """, pr_params)
@@ -1248,7 +1399,7 @@ def collection_analytics_api(request):
             "net_collection": round(tot_net, 2),
             "total_collection": round(tot_gross, 2),
             "healthcare_collection": round(ghc, 2),
-            "pharmacy_collection": round(gph, 2),
+            "pharmacy_collection": round(gph - rph, 2),
             "payment_return": round(tot_ret, 2)
         })
 
@@ -1259,15 +1410,7 @@ def collection_analytics_api(request):
     all_branch_rows = cursor.fetchall()
     branches = [{"id": b[0], "name": b[1]} for b in all_branch_rows]
 
-    # Branch aggregations across all 4 clinical tables + pharmacy + return
-    if exclude_gst:
-        if exclude_cash:
-            branch_pr_expr = f"SUM(msc.price_without_gst * {pr_non_cash_ratio})"
-        else:
-            branch_pr_expr = "SUM(msc.price_without_gst)"
-    else:
-        branch_pr_expr = f"SUM({pr_modes_expr})"
-
+    # Branch aggregations across all 4 clinical tables + pharmacy sales + pharmacy return
     branch_stats_sql = f"""
         SELECT 
             b.id,
@@ -1309,15 +1452,14 @@ def collection_analytics_api(request):
         ) im ON im.b_id = b.id
         LEFT JOIN (
             SELECT CAST(mpi.branch_id AS UNSIGNED) as b_id,
-                   SUM({ph_modes_expr} * ({ph_factor})) as gross_ph
+                   COALESCE(SUM({ph_sales_metric}), 0) as gross_ph
             FROM medication_patients_invoices mpi
-            LEFT JOIN medication_payment_history mph ON mph.medication_patients_invoice_id = mpi.id
             WHERE {ph_where_sql}
             GROUP BY b_id
         ) ph ON ph.b_id = b.id
         LEFT JOIN (
             SELECT CAST(branch_id AS UNSIGNED) as b_id,
-                   {branch_pr_expr} as return_ph
+                   COALESCE(SUM({pr_sales_metric}), 0) as return_ph
             FROM medication_sales_credit msc
             WHERE {pr_where_sql}
             GROUP BY b_id
