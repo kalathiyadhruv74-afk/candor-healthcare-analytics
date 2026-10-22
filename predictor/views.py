@@ -817,6 +817,7 @@ def collection_analytics_api(request):
     cursor = connection.cursor()
 
     # --- 1. HEALTHCARE FILTERS ---
+    # Component A: indoor_deposits
     hc_where = ["1=1"]
     hc_params = []
     if start_date:
@@ -831,6 +832,54 @@ def collection_analytics_api(request):
     if exclude_cash:
         hc_where.append("d.payment_type != 2")
     hc_where_sql = " AND ".join(hc_where)
+
+    # Component B: appointment_charges
+    ac_where = ["a.category_id != 7", "ac.total > 0"]
+    ac_params = []
+    if start_date:
+        ac_where.append("a.date >= %s")
+        ac_params.append(start_date)
+    if end_date:
+        ac_where.append("a.date <= %s")
+        ac_params.append(end_date)
+    if branch_id:
+        ac_where.append("a.branch_id = %s")
+        ac_params.append(branch_id)
+    if exclude_cash:
+        ac_where.append("ac.payment_mode != 2")
+    ac_where_sql = " AND ".join(ac_where)
+
+    # Component C: embryology_invoice
+    ei_where = ["(ei.payment_cash + ei.payment_upi + ei.payment_cheque + ei.payment_neft + ei.payment_card_swipe) > 0"]
+    ei_params = []
+    if start_date:
+        ei_where.append("DATE(ei.created_at) >= %s")
+        ei_params.append(start_date)
+    if end_date:
+        ei_where.append("DATE(ei.created_at) <= %s")
+        ei_params.append(end_date)
+    if branch_id:
+        ei_where.append("ei.branch_id = %s")
+        ei_params.append(branch_id)
+    if exclude_cash:
+        ei_where.append("(ei.payment_upi + ei.payment_cheque + ei.payment_neft + ei.payment_card_swipe) > 0")
+    ei_where_sql = " AND ".join(ei_where)
+
+    # Component D: income_manager
+    im_where = ["im.amount > 0"]
+    im_params = []
+    if start_date:
+        im_where.append("DATE(im.date) >= %s")
+        im_params.append(start_date)
+    if end_date:
+        im_where.append("DATE(im.date) <= %s")
+        im_params.append(end_date)
+    if branch_id:
+        im_where.append("im.branch_id = %s")
+        im_params.append(branch_id)
+    if exclude_cash:
+        im_where.append("im.payment_method != 2")
+    im_where_sql = " AND ".join(im_where)
 
     # --- 2. PHARMACY COLLECTION FILTERS (Aligned with Pharmacy Report logic: mpi.date_of_transaction) ---
     ph_where = ["mpi.is_deleted = 0"]
@@ -870,7 +919,8 @@ def collection_analytics_api(request):
         pr_modes_expr = "(msc.payment_cash + msc.payment_upi + msc.payment_cheque + msc.payment_neft)"
         pr_non_cash_ratio = "1.0"
 
-    # --- EXECUTE HEALTHCARE AGGREGATE ---
+    # --- EXECUTE HEALTHCARE AGGREGATE ACROSS ALL 4 CLINICAL TABLES ---
+    # 1. indoor_deposits
     hc_sql = f"""
         SELECT 
             SUM(CASE WHEN d.case_type = 'Credit' THEN d.amount ELSE 0 END) as gross_credit,
@@ -896,6 +946,87 @@ def collection_analytics_api(request):
     hc_cheque = float(hc_row[6] or 0.0)
     hc_neft = float(hc_row[7] or 0.0)
     hc_other = float(hc_row[8] or 0.0)
+
+    # 2. appointment_charges
+    ac_sql = f"""
+        SELECT 
+            COALESCE(SUM(ac.total), 0) as gross_ac,
+            COUNT(ac.id) as count_ac,
+            COALESCE(SUM(CASE WHEN ac.payment_mode = 2 THEN ac.total ELSE 0 END), 0) as cash_amt,
+            COALESCE(SUM(CASE WHEN ac.payment_mode = 4 THEN ac.total ELSE 0 END), 0) as upi_amt,
+            COALESCE(SUM(CASE WHEN ac.payment_mode = 3 THEN ac.total ELSE 0 END), 0) as cheque_amt,
+            COALESCE(SUM(CASE WHEN ac.payment_mode = 5 THEN ac.total ELSE 0 END), 0) as neft_amt,
+            COALESCE(SUM(CASE WHEN ac.payment_mode NOT IN (2, 3, 4, 5) THEN ac.total ELSE 0 END), 0) as other_amt
+        FROM appointment_charges ac
+        JOIN appointments a ON ac.appointment_id = a.id
+        WHERE {ac_where_sql}
+    """
+    cursor.execute(ac_sql, ac_params)
+    ac_row = cursor.fetchone() or (0, 0, 0, 0, 0, 0, 0)
+    ac_gross = float(ac_row[0] or 0.0)
+    ac_count = int(ac_row[1] or 0)
+    ac_cash = float(ac_row[2] or 0.0)
+    ac_upi = float(ac_row[3] or 0.0)
+    ac_cheque = float(ac_row[4] or 0.0)
+    ac_neft = float(ac_row[5] or 0.0)
+    ac_other = float(ac_row[6] or 0.0)
+
+    # 3. embryology_invoice
+    ei_gross_expr = "(ei.payment_upi + ei.payment_cheque + ei.payment_neft + ei.payment_card_swipe)" if exclude_cash else "(ei.payment_cash + ei.payment_upi + ei.payment_cheque + ei.payment_neft + ei.payment_card_swipe)"
+    ei_cash_expr = "0.0" if exclude_cash else "COALESCE(SUM(ei.payment_cash), 0)"
+    ei_sql = f"""
+        SELECT 
+            COALESCE(SUM({ei_gross_expr}), 0) as gross_ei,
+            COUNT(ei.id) as count_ei,
+            {ei_cash_expr} as cash_amt,
+            COALESCE(SUM(ei.payment_upi), 0) as upi_amt,
+            COALESCE(SUM(ei.payment_cheque), 0) as cheque_amt,
+            COALESCE(SUM(ei.payment_neft), 0) as neft_amt,
+            COALESCE(SUM(ei.payment_card_swipe), 0) as other_amt
+        FROM embryology_invoice ei
+        WHERE {ei_where_sql}
+    """
+    cursor.execute(ei_sql, ei_params)
+    ei_row = cursor.fetchone() or (0, 0, 0, 0, 0, 0, 0)
+    ei_gross = float(ei_row[0] or 0.0)
+    ei_count = int(ei_row[1] or 0)
+    ei_cash = float(ei_row[2] or 0.0)
+    ei_upi = float(ei_row[3] or 0.0)
+    ei_cheque = float(ei_row[4] or 0.0)
+    ei_neft = float(ei_row[5] or 0.0)
+    ei_other = float(ei_row[6] or 0.0)
+
+    # 4. income_manager
+    im_sql = f"""
+        SELECT 
+            COALESCE(SUM(im.amount), 0) as gross_im,
+            COUNT(im.id) as count_im,
+            COALESCE(SUM(CASE WHEN im.payment_method = 2 THEN im.amount ELSE 0 END), 0) as cash_amt,
+            COALESCE(SUM(CASE WHEN im.payment_method = 4 THEN im.amount ELSE 0 END), 0) as upi_amt,
+            COALESCE(SUM(CASE WHEN im.payment_method = 3 THEN im.amount ELSE 0 END), 0) as cheque_amt,
+            COALESCE(SUM(CASE WHEN im.payment_method = 5 THEN im.amount ELSE 0 END), 0) as neft_amt,
+            COALESCE(SUM(CASE WHEN im.payment_method NOT IN (2, 3, 4, 5) THEN im.amount ELSE 0 END), 0) as other_amt
+        FROM income_manager im
+        WHERE {im_where_sql}
+    """
+    cursor.execute(im_sql, im_params)
+    im_row = cursor.fetchone() or (0, 0, 0, 0, 0, 0, 0)
+    im_gross = float(im_row[0] or 0.0)
+    im_count = int(im_row[1] or 0)
+    im_cash = float(im_row[2] or 0.0)
+    im_upi = float(im_row[3] or 0.0)
+    im_cheque = float(im_row[4] or 0.0)
+    im_neft = float(im_row[5] or 0.0)
+    im_other = float(im_row[6] or 0.0)
+
+    # Combined Healthcare Aggregates
+    combined_hc_gross = round(hc_gross + ac_gross + ei_gross + im_gross, 2)
+    combined_hc_credit_count = hc_credit_count + ac_count + ei_count + im_count
+    combined_hc_cash = round(hc_cash + ac_cash + ei_cash + im_cash, 2)
+    combined_hc_upi = round(hc_upi + ac_upi + ei_upi + im_upi, 2)
+    combined_hc_cheque = round(hc_cheque + ac_cheque + ei_cheque + im_cheque, 2)
+    combined_hc_neft = round(hc_neft + ac_neft + ei_neft + im_neft, 2)
+    combined_hc_other = round(hc_other + ac_other + ei_other + im_other, 2)
 
     # --- EXECUTE PHARMACY COLLECTION AGGREGATE ---
     if exclude_gst:
@@ -992,9 +1123,9 @@ def collection_analytics_api(request):
 
     # --- CORE KPI METRICS REQUESTED BY USER ---
     # 1. Total Collection (Gross Combined Collection)
-    total_gross_collection = round(hc_gross + ph_gross, 2)
-    # 2. Total Healthcare Collection
-    total_healthcare_collection = round(hc_gross, 2)
+    total_gross_collection = round(combined_hc_gross + ph_gross, 2)
+    # 2. Total Healthcare Collection (Indoor deposits + OPD + Embryology + Income Manager)
+    total_healthcare_collection = combined_hc_gross
     # 3. Total Pharmacy Collection
     total_pharmacy_collection = round(ph_gross, 2)
     # 4. PAYMENT RETURN (Hospital Refund/Debit + Pharmacy Credit Note/Sales Return)
@@ -1003,14 +1134,14 @@ def collection_analytics_api(request):
     net_collection = round(total_gross_collection - total_payment_return, 2)
 
     # Payment modes summary (Net)
-    total_cash_net = 0.0 if exclude_cash else round((hc_cash + ph_cash) - (pr_cash), 2)
-    total_upi_net = round((hc_upi + ph_upi) - (pr_upi), 2)
-    total_cheque_net = round((hc_cheque + ph_cheque) - (pr_cheque), 2)
-    total_neft_net = round((hc_neft + ph_neft) - (pr_neft), 2)
-    total_other_net = round(hc_other, 2)
+    total_cash_net = 0.0 if exclude_cash else round((combined_hc_cash + ph_cash) - (pr_cash), 2)
+    total_upi_net = round((combined_hc_upi + ph_upi) - (pr_upi), 2)
+    total_cheque_net = round((combined_hc_cheque + ph_cheque) - (pr_cheque), 2)
+    total_neft_net = round((combined_hc_neft + ph_neft) - (pr_neft), 2)
+    total_other_net = round(combined_hc_other, 2)
 
     # --- MONTHLY TRENDS ---
-    # Monthly healthcare
+    # 1. Monthly indoor deposits
     cursor.execute(f"""
         SELECT 
             DATE_FORMAT(d.created_at, '%%Y-%%m') as ym,
@@ -1022,6 +1153,52 @@ def collection_analytics_api(request):
         ORDER BY ym ASC
     """, hc_params)
     hc_monthly = {r[0]: {"gross_hc": float(r[1] or 0), "return_hc": float(r[2] or 0)} for r in cursor.fetchall()}
+
+    # 2. Monthly appointment charges
+    cursor.execute(f"""
+        SELECT 
+            DATE_FORMAT(a.date, '%%Y-%%m') as ym,
+            COALESCE(SUM(ac.total), 0) as gross_ac
+        FROM appointment_charges ac
+        JOIN appointments a ON ac.appointment_id = a.id
+        WHERE {ac_where_sql} AND a.date IS NOT NULL
+        GROUP BY ym
+    """, ac_params)
+    for r in cursor.fetchall():
+        ym, amt = r[0], float(r[1] or 0)
+        if ym not in hc_monthly:
+            hc_monthly[ym] = {"gross_hc": 0.0, "return_hc": 0.0}
+        hc_monthly[ym]["gross_hc"] += amt
+
+    # 3. Monthly embryology invoice
+    cursor.execute(f"""
+        SELECT 
+            DATE_FORMAT(ei.created_at, '%%Y-%%m') as ym,
+            COALESCE(SUM({ei_gross_expr}), 0) as gross_ei
+        FROM embryology_invoice ei
+        WHERE {ei_where_sql} AND ei.created_at IS NOT NULL
+        GROUP BY ym
+    """, ei_params)
+    for r in cursor.fetchall():
+        ym, amt = r[0], float(r[1] or 0)
+        if ym not in hc_monthly:
+            hc_monthly[ym] = {"gross_hc": 0.0, "return_hc": 0.0}
+        hc_monthly[ym]["gross_hc"] += amt
+
+    # 4. Monthly income manager
+    cursor.execute(f"""
+        SELECT 
+            DATE_FORMAT(im.date, '%%Y-%%m') as ym,
+            COALESCE(SUM(im.amount), 0) as gross_im
+        FROM income_manager im
+        WHERE {im_where_sql} AND im.date IS NOT NULL
+        GROUP BY ym
+    """, im_params)
+    for r in cursor.fetchall():
+        ym, amt = r[0], float(r[1] or 0)
+        if ym not in hc_monthly:
+            hc_monthly[ym] = {"gross_hc": 0.0, "return_hc": 0.0}
+        hc_monthly[ym]["gross_hc"] += amt
 
     # Monthly pharmacy (aligned to mpi.date_of_transaction)
     cursor.execute(f"""
@@ -1082,7 +1259,7 @@ def collection_analytics_api(request):
     all_branch_rows = cursor.fetchall()
     branches = [{"id": b[0], "name": b[1]} for b in all_branch_rows]
 
-    # Branch aggregations
+    # Branch aggregations across all 4 clinical tables + pharmacy + return
     if exclude_gst:
         if exclude_cash:
             branch_pr_expr = f"SUM(msc.price_without_gst * {pr_non_cash_ratio})"
@@ -1095,38 +1272,60 @@ def collection_analytics_api(request):
         SELECT 
             b.id,
             b.name,
-            COALESCE(hc.gross_hc, 0) as gross_hc,
+            (COALESCE(hc.gross_hc, 0) + COALESCE(ac.gross_ac, 0) + COALESCE(ei.gross_ei, 0) + COALESCE(im.gross_im, 0)) as gross_hc,
             COALESCE(hc.return_hc, 0) as return_hc,
             COALESCE(ph.gross_ph, 0) as gross_ph,
             COALESCE(pr.return_ph, 0) as return_ph
         FROM branch b
         LEFT JOIN (
-            SELECT branch_id,
+            SELECT CAST(branch_id AS UNSIGNED) as b_id,
                    SUM(CASE WHEN case_type = 'Credit' THEN amount ELSE 0 END) as gross_hc,
                    SUM(CASE WHEN case_type = 'Debit' THEN amount ELSE 0 END) as return_hc
             FROM indoor_deposits d
             WHERE {hc_where_sql}
-            GROUP BY branch_id
-        ) hc ON hc.branch_id = b.id
+            GROUP BY b_id
+        ) hc ON hc.b_id = b.id
         LEFT JOIN (
-            SELECT mpi.branch_id,
+            SELECT CAST(a.branch_id AS UNSIGNED) as b_id,
+                   SUM(ac.total) as gross_ac
+            FROM appointment_charges ac
+            JOIN appointments a ON ac.appointment_id = a.id
+            WHERE {ac_where_sql}
+            GROUP BY b_id
+        ) ac ON ac.b_id = b.id
+        LEFT JOIN (
+            SELECT CAST(ei.branch_id AS UNSIGNED) as b_id,
+                   SUM({ei_gross_expr}) as gross_ei
+            FROM embryology_invoice ei
+            WHERE {ei_where_sql}
+            GROUP BY b_id
+        ) ei ON ei.b_id = b.id
+        LEFT JOIN (
+            SELECT CAST(im.branch_id AS UNSIGNED) as b_id,
+                   SUM(im.amount) as gross_im
+            FROM income_manager im
+            WHERE {im_where_sql}
+            GROUP BY b_id
+        ) im ON im.b_id = b.id
+        LEFT JOIN (
+            SELECT CAST(mpi.branch_id AS UNSIGNED) as b_id,
                    SUM({ph_modes_expr} * ({ph_factor})) as gross_ph
             FROM medication_patients_invoices mpi
             LEFT JOIN medication_payment_history mph ON mph.medication_patients_invoice_id = mpi.id
             WHERE {ph_where_sql}
-            GROUP BY mpi.branch_id
-        ) ph ON ph.branch_id = b.id
+            GROUP BY b_id
+        ) ph ON ph.b_id = b.id
         LEFT JOIN (
-            SELECT branch_id,
+            SELECT CAST(branch_id AS UNSIGNED) as b_id,
                    {branch_pr_expr} as return_ph
             FROM medication_sales_credit msc
             WHERE {pr_where_sql}
-            GROUP BY branch_id
-        ) pr ON pr.branch_id = b.id
+            GROUP BY b_id
+        ) pr ON pr.b_id = b.id
         HAVING (gross_hc > 0 OR gross_ph > 0 OR return_hc > 0 OR return_ph > 0)
         ORDER BY (gross_hc + gross_ph) DESC
     """
-    combined_params = hc_params + ph_params + pr_params
+    combined_params = hc_params + ac_params + ei_params + im_params + ph_params + pr_params
     cursor.execute(branch_stats_sql, combined_params)
     branch_rows = cursor.fetchall()
     branch_breakdown = []
@@ -1146,15 +1345,15 @@ def collection_analytics_api(request):
             "pct_of_total": round((b_net / net_collection * 100), 1) if net_collection > 0 else 0
         })
 
-    # --- RECENT TRANSACTIONS LEDGER (Up to 250 items) ---
+    # --- RECENT TRANSACTIONS LEDGER ---
     records = []
     
-    # 1. Healthcare Credits & Debits
+    # 1. Healthcare Indoor Deposits (Credits & Debits)
     hc_rec_query = f"""
         SELECT 
             d.id,
             d.created_at,
-            'Healthcare' as source,
+            'Healthcare (Deposit)' as source,
             d.case_type,
             d.amount,
             p.id as patient_id,
@@ -1175,7 +1374,7 @@ def collection_analytics_api(request):
         LEFT JOIN branch b ON d.branch_id = b.id
         WHERE {hc_where_sql}
         ORDER BY d.created_at DESC
-        LIMIT 150
+        LIMIT 60
     """
     cursor.execute(hc_rec_query, hc_params)
     for r in cursor.fetchall():
@@ -1183,7 +1382,7 @@ def collection_analytics_api(request):
         records.append({
             "id": f"HC-{r[0]}",
             "date": r[1].strftime("%Y-%m-%d %H:%M") if r[1] else "-",
-            "source": "Healthcare Collection" if not is_ret else "Healthcare Return",
+            "source": "Healthcare (Deposit)" if not is_ret else "Healthcare Return",
             "source_type": "healthcare",
             "is_return": is_ret,
             "amount": float(r[4] or 0),
@@ -1195,7 +1394,143 @@ def collection_analytics_api(request):
             "reference": r[10] or "-"
         })
 
-    # 2. Pharmacy Returns (Medication Sales Credit)
+    # 2. Appointment Charges (OPD / Consultation)
+    ac_rec_query = f"""
+        SELECT 
+            ac.id,
+            a.date,
+            'OPD / Consultation' as source,
+            'Credit' as case_type,
+            ac.total as amount,
+            p.id as patient_id,
+            p.code as patient_code,
+            CONCAT(IFNULL(p.name, ''), ' ', IFNULL(p.surname, '')) as patient_name,
+            IFNULL(b.name, CONCAT('Branch ', a.branch_id)) as branch_name,
+            CASE ac.payment_mode
+                WHEN 2 THEN 'Cash'
+                WHEN 4 THEN 'UPI'
+                WHEN 3 THEN 'Cheque'
+                WHEN 5 THEN 'NEFT/RTGS'
+                WHEN 1 THEN 'Card/Swipe'
+                ELSE 'Other'
+            END as mode_str,
+            COALESCE(ac.invoice_no, ac.detail, 'OPD Charge') as reference_note
+        FROM appointment_charges ac
+        JOIN appointments a ON ac.appointment_id = a.id
+        LEFT JOIN patients p ON a.patients_id = p.id
+        LEFT JOIN branch b ON a.branch_id = b.id
+        WHERE {ac_where_sql}
+        ORDER BY a.date DESC, ac.id DESC
+        LIMIT 50
+    """
+    cursor.execute(ac_rec_query, ac_params)
+    for r in cursor.fetchall():
+        records.append({
+            "id": f"OPD-{r[0]}",
+            "date": r[1].strftime("%Y-%m-%d") if r[1] else "-",
+            "source": "OPD / Consultation",
+            "source_type": "healthcare",
+            "is_return": False,
+            "amount": float(r[4] or 0),
+            "patient_id": r[5],
+            "patient_code": r[6] or "-",
+            "patient_name": (r[7] or "").strip() or "OPD Patient",
+            "branch_name": r[8] or "-",
+            "payment_mode": r[9] or "Cash",
+            "reference": r[10] or "-"
+        })
+
+    # 3. Embryology / Andrology Invoices
+    ei_rec_query = f"""
+        SELECT 
+            ei.id,
+            ei.created_at,
+            'Embryology' as source,
+            'Credit' as case_type,
+            ({ei_gross_expr}) as amount,
+            p.id as patient_id,
+            p.code as patient_code,
+            CONCAT(IFNULL(p.name, ''), ' ', IFNULL(p.surname, '')) as patient_name,
+            IFNULL(b.name, CONCAT('Branch ', ei.branch_id)) as branch_name,
+            CASE 
+                WHEN ei.payment_upi > 0 THEN 'UPI'
+                WHEN ei.payment_cash > 0 THEN 'Cash'
+                WHEN ei.payment_cheque > 0 THEN 'Cheque'
+                WHEN ei.payment_neft > 0 THEN 'NEFT/RTGS'
+                WHEN ei.payment_card_swipe > 0 THEN 'Card/Swipe'
+                ELSE 'Cash'
+            END as mode_str,
+            COALESCE(ei.process_name, 'Embryology Invoice') as reference_note
+        FROM embryology_invoice ei
+        LEFT JOIN patients p ON ei.patients_id = p.id
+        LEFT JOIN branch b ON ei.branch_id = b.id
+        WHERE {ei_where_sql}
+        ORDER BY ei.created_at DESC
+        LIMIT 40
+    """
+    cursor.execute(ei_rec_query, ei_params)
+    for r in cursor.fetchall():
+        records.append({
+            "id": f"EMB-{r[0]}",
+            "date": r[1].strftime("%Y-%m-%d %H:%M") if r[1] else "-",
+            "source": "Embryology / Andrology",
+            "source_type": "healthcare",
+            "is_return": False,
+            "amount": float(r[4] or 0),
+            "patient_id": r[5],
+            "patient_code": r[6] or "-",
+            "patient_name": (r[7] or "").strip() or "Lab Patient",
+            "branch_name": r[8] or "-",
+            "payment_mode": r[9] or "Cash",
+            "reference": r[10] or "-"
+        })
+
+    # 4. Income Manager (General Hospital Receipts)
+    im_rec_query = f"""
+        SELECT 
+            im.id,
+            im.date,
+            'Hospital Income' as source,
+            'Credit' as case_type,
+            im.amount,
+            p.id as patient_id,
+            p.code as patient_code,
+            COALESCE(CONCAT(IFNULL(p.name, ''), ' ', IFNULL(p.surname, '')), im.given_by, 'Hospital Client') as patient_name,
+            IFNULL(b.name, CONCAT('Branch ', im.branch_id)) as branch_name,
+            CASE im.payment_method
+                WHEN 2 THEN 'Cash'
+                WHEN 4 THEN 'UPI'
+                WHEN 3 THEN 'Cheque'
+                WHEN 5 THEN 'NEFT/RTGS'
+                WHEN 1 THEN 'NetBanking'
+                ELSE 'Other'
+            END as mode_str,
+            COALESCE(im.note, im.description, im.income_category, 'General Receipt') as reference_note
+        FROM income_manager im
+        LEFT JOIN patients p ON im.patients_id = p.id
+        LEFT JOIN branch b ON im.branch_id = b.id
+        WHERE {im_where_sql}
+        ORDER BY im.date DESC, im.id DESC
+        LIMIT 50
+    """
+    cursor.execute(im_rec_query, im_params)
+    for r in cursor.fetchall():
+        records.append({
+            "id": f"INC-{r[0]}",
+            "date": r[1].strftime("%Y-%m-%d") if r[1] else "-",
+            "source": "Hospital Income",
+            "source_type": "healthcare",
+            "is_return": False,
+            "amount": float(r[4] or 0),
+            "patient_id": r[5],
+            "patient_code": r[6] or "-",
+            "patient_name": (r[7] or "").strip() or "Hospital Client",
+            "branch_name": r[8] or "-",
+            "payment_mode": r[9] or "Cash",
+            "reference": r[10] or "-"
+        })
+
+    # 5. Pharmacy Returns (Medication Sales Credit)
     pr_rec_query = f"""
         SELECT 
             msc.id,
@@ -1220,7 +1555,7 @@ def collection_analytics_api(request):
         LEFT JOIN branch b ON msc.branch_id = b.id
         WHERE {pr_where_sql}
         ORDER BY msc.date_of_transaction DESC, msc.id DESC
-        LIMIT 100
+        LIMIT 60
     """
     cursor.execute(pr_rec_query, pr_params)
     for r in cursor.fetchall():
