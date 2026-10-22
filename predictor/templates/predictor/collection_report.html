@@ -1079,19 +1079,15 @@
 
         function formatINR(val) {
             const num = Number(val) || 0;
+            const hasDecimals = (num % 1 !== 0);
             return '₹ ' + num.toLocaleString('en-IN', {
-                maximumFractionDigits: 0,
-                minimumFractionDigits: 0
+                minimumFractionDigits: hasDecimals ? 2 : 0,
+                maximumFractionDigits: 2
             });
         }
 
         function formatINRCompact(val) {
             const num = Number(val) || 0;
-            if (Math.abs(num) >= 10000000) {
-                return '₹ ' + (num / 10000000).toFixed(2) + ' Cr';
-            } else if (Math.abs(num) >= 100000) {
-                return '₹ ' + (num / 100000).toFixed(2) + ' L';
-            }
             return formatINR(num);
         }
 

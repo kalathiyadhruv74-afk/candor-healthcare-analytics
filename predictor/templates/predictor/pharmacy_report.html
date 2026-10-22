@@ -1120,20 +1120,17 @@
 
         function formatINR(amount) {
             if (amount === null || amount === undefined || isNaN(amount)) return "₹ 0";
-            return "₹ " + Number(amount).toLocaleString('en-IN', {
-                maximumFractionDigits: 0
+            const num = Number(amount);
+            const hasDecimals = (num % 1 !== 0);
+            return "₹ " + num.toLocaleString('en-IN', {
+                minimumFractionDigits: hasDecimals ? 2 : 0,
+                maximumFractionDigits: 2
             });
         }
 
         function formatINRCompact(amount) {
-            if (amount >= 10000000) {
-                return "₹ " + (amount / 10000000).toFixed(2) + " Cr";
-            } else if (amount >= 100000) {
-                return "₹ " + (amount / 100000).toFixed(2) + " L";
-            } else if (amount >= 1000) {
-                return "₹ " + (amount / 1000).toFixed(1) + " K";
-            }
-            return "₹ " + Math.round(amount);
+            if (amount === null || amount === undefined || isNaN(amount)) return "₹ 0";
+            return formatINR(amount);
         }
 
         function showLoader() {
