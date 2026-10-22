@@ -1194,14 +1194,14 @@ def collection_analytics_api(request):
     im_neft = float(im_row[5] or 0.0)
     im_other = float(im_row[6] or 0.0)
 
-    # Combined Healthcare Aggregates
-    combined_hc_gross = round(hc_gross + ac_gross + ei_gross + im_gross, 2)
-    combined_hc_credit_count = hc_credit_count + ac_count + ei_count + im_count
-    combined_hc_cash = round(hc_cash + ac_cash + ei_cash + im_cash, 2)
-    combined_hc_upi = round(hc_upi + ac_upi + ei_upi + im_upi, 2)
-    combined_hc_cheque = round(hc_cheque + ac_cheque + ei_cheque + im_cheque, 2)
-    combined_hc_neft = round(hc_neft + ac_neft + ei_neft + im_neft, 2)
-    combined_hc_other = round(hc_other + ac_other + ei_other + im_other, 2)
+    # Combined Healthcare Aggregates (Excludes Hospital Income Manager as requested by user)
+    combined_hc_gross = round(hc_gross + ac_gross + ei_gross, 2)
+    combined_hc_credit_count = hc_credit_count + ac_count + ei_count
+    combined_hc_cash = round(hc_cash + ac_cash + ei_cash, 2)
+    combined_hc_upi = round(hc_upi + ac_upi + ei_upi, 2)
+    combined_hc_cheque = round(hc_cheque + ac_cheque + ei_cheque, 2)
+    combined_hc_neft = round(hc_neft + ac_neft + ei_neft, 2)
+    combined_hc_other = round(hc_other + ac_other + ei_other, 2)
 
     # --- EXECUTE PHARMACY COLLECTION AGGREGATE (Sales Register: mpi) ---
     # Without GST: mpi.sell_price_without_gst
@@ -1351,21 +1351,6 @@ def collection_analytics_api(request):
             hc_monthly[ym] = {"gross_hc": 0.0, "return_hc": 0.0}
         hc_monthly[ym]["gross_hc"] += amt
 
-    # 4. Monthly income manager
-    cursor.execute(f"""
-        SELECT 
-            DATE_FORMAT(im.date, '%%Y-%%m') as ym,
-            COALESCE(SUM(im.amount), 0) as gross_im
-        FROM income_manager im
-        WHERE {im_where_sql} AND im.date IS NOT NULL
-        GROUP BY ym
-    """, im_params)
-    for r in cursor.fetchall():
-        ym, amt = r[0], float(r[1] or 0)
-        if ym not in hc_monthly:
-            hc_monthly[ym] = {"gross_hc": 0.0, "return_hc": 0.0}
-        hc_monthly[ym]["gross_hc"] += amt
-
     # Monthly pharmacy (Sales Register: mpi)
     cursor.execute(f"""
         SELECT 
@@ -1416,12 +1401,12 @@ def collection_analytics_api(request):
     all_branch_rows = cursor.fetchall()
     branches = [{"id": b[0], "name": b[1]} for b in all_branch_rows]
 
-    # Branch aggregations across all 4 clinical tables + pharmacy sales + pharmacy return
+    # Branch aggregations across all clinical tables (Indoor + OPD + Embryology) + pharmacy sales + pharmacy return
     branch_stats_sql = f"""
         SELECT 
             b.id,
             b.name,
-            (COALESCE(hc.gross_hc, 0) + COALESCE(ac.gross_ac, 0) + COALESCE(ei.gross_ei, 0) + COALESCE(im.gross_im, 0)) as gross_hc,
+            (COALESCE(hc.gross_hc, 0) + COALESCE(ac.gross_ac, 0) + COALESCE(ei.gross_ei, 0)) as gross_hc,
             COALESCE(hc.return_hc, 0) as return_hc,
             COALESCE(ph.gross_ph, 0) as gross_ph,
             COALESCE(pr.return_ph, 0) as return_ph
@@ -1450,13 +1435,6 @@ def collection_analytics_api(request):
             GROUP BY b_id
         ) ei ON ei.b_id = b.id
         LEFT JOIN (
-            SELECT CAST(im.branch_id AS UNSIGNED) as b_id,
-                   SUM(im.amount) as gross_im
-            FROM income_manager im
-            WHERE {im_where_sql}
-            GROUP BY b_id
-        ) im ON im.b_id = b.id
-        LEFT JOIN (
             SELECT CAST(mpi.branch_id AS UNSIGNED) as b_id,
                    COALESCE(SUM({ph_sales_metric}), 0) as gross_ph
             FROM medication_patients_invoices mpi
@@ -1473,7 +1451,7 @@ def collection_analytics_api(request):
         HAVING (gross_hc > 0 OR gross_ph > 0 OR return_hc > 0 OR return_ph > 0)
         ORDER BY (gross_hc + gross_ph) DESC
     """
-    combined_params = hc_params + ac_params + ei_params + im_params + ph_params + pr_params
+    combined_params = hc_params + ac_params + ei_params + ph_params + pr_params
     cursor.execute(branch_stats_sql, combined_params)
     branch_rows = cursor.fetchall()
     branch_breakdown = []
@@ -1633,52 +1611,7 @@ def collection_analytics_api(request):
             "reference": r[10] or "-"
         })
 
-    # 4. Income Manager (General Hospital Receipts)
-    im_rec_query = f"""
-        SELECT 
-            im.id,
-            im.date,
-            'Hospital Income' as source,
-            'Credit' as case_type,
-            im.amount,
-            p.id as patient_id,
-            p.code as patient_code,
-            COALESCE(CONCAT(IFNULL(p.name, ''), ' ', IFNULL(p.surname, '')), im.given_by, 'Hospital Client') as patient_name,
-            IFNULL(b.name, CONCAT('Branch ', im.branch_id)) as branch_name,
-            CASE im.payment_method
-                WHEN 1 THEN 'Cash'
-                WHEN 2 THEN 'Card/Swipe'
-                WHEN 4 THEN 'UPI'
-                WHEN 3 THEN 'Cheque'
-                WHEN 5 THEN 'NEFT/RTGS'
-                ELSE 'Other'
-            END as mode_str,
-            COALESCE(im.note, im.description, im.income_category, 'General Receipt') as reference_note
-        FROM income_manager im
-        LEFT JOIN patients p ON im.patients_id = p.id
-        LEFT JOIN branch b ON im.branch_id = b.id
-        WHERE {im_where_sql}
-        ORDER BY im.date DESC, im.id DESC
-        LIMIT 50
-    """
-    cursor.execute(im_rec_query, im_params)
-    for r in cursor.fetchall():
-        records.append({
-            "id": f"INC-{r[0]}",
-            "date": r[1].strftime("%Y-%m-%d") if r[1] else "-",
-            "source": "Hospital Income",
-            "source_type": "healthcare",
-            "is_return": False,
-            "amount": float(r[4] or 0),
-            "patient_id": r[5],
-            "patient_code": r[6] or "-",
-            "patient_name": (r[7] or "").strip() or "Hospital Client",
-            "branch_name": r[8] or "-",
-            "payment_mode": r[9] or "Cash",
-            "reference": r[10] or "-"
-        })
-
-    # 5. Pharmacy Returns (Medication Sales Credit)
+    # 4. Pharmacy Returns (Medication Sales Credit)
     pr_rec_query = f"""
         SELECT 
             msc.id,
