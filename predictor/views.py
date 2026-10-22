@@ -985,9 +985,9 @@ def collection_analytics_api(request):
 
     cursor = connection.cursor()
 
-    # --- 1. HEALTHCARE FILTERS ---
-    # Component A: indoor_deposits
-    hc_where = ["1=1"]
+    # --- 1. HEALTHCARE FILTERS (Strict parity with node-backend getNewCollectionReport) ---
+    # Component A: indoor_deposits (is_deleted = 0)
+    hc_where = ["d.is_deleted = 0"]
     hc_params = []
     if start_date:
         hc_where.append("DATE(d.created_at) >= %s")
@@ -1018,14 +1018,15 @@ def collection_analytics_api(request):
         ac_where.append("ac.payment_mode != 2")
     ac_where_sql = " AND ".join(ac_where)
 
-    # Component C: embryology_invoice
+    # Component C: embryology_invoice (collection-day parity with invoice_vouchers date if available)
+    ei_date_col = "COALESCE((SELECT iv.date FROM invoice_vouchers iv WHERE iv.finance_procedure = 'embryology_invoice' AND iv.entry_id = ei.id AND iv.branch_id = ei.branch_id AND iv.ivf_status = 0 ORDER BY iv.id DESC LIMIT 1), DATE(ei.created_at))"
     ei_where = ["(ei.payment_cash + ei.payment_upi + ei.payment_cheque + ei.payment_neft + ei.payment_card_swipe) > 0"]
     ei_params = []
     if start_date:
-        ei_where.append("DATE(ei.created_at) >= %s")
+        ei_where.append(f"{ei_date_col} >= %s")
         ei_params.append(start_date)
     if end_date:
-        ei_where.append("DATE(ei.created_at) <= %s")
+        ei_where.append(f"{ei_date_col} <= %s")
         ei_params.append(end_date)
     if branch_id:
         ei_where.append("ei.branch_id = %s")
@@ -1034,8 +1035,11 @@ def collection_analytics_api(request):
         ei_where.append("(ei.payment_upi + ei.payment_cheque + ei.payment_neft + ei.payment_card_swipe) > 0")
     ei_where_sql = " AND ".join(ei_where)
 
-    # Component D: income_manager
-    im_where = ["im.amount > 0"]
+    # Component D: income_manager (type = 1 and status = 1 expense categories)
+    im_where = [
+        "im.amount > 0",
+        "im.income_category IN (SELECT ec.id FROM expance_category ec WHERE ec.type = 1 AND ec.status = 1)"
+    ]
     im_params = []
     if start_date:
         im_where.append("DATE(im.date) >= %s")
@@ -1047,7 +1051,7 @@ def collection_analytics_api(request):
         im_where.append("im.branch_id = %s")
         im_params.append(branch_id)
     if exclude_cash:
-        im_where.append("im.payment_method != 2")
+        im_where.append("im.payment_method NOT IN (1, 2)")
     im_where_sql = " AND ".join(im_where)
 
     # --- 2. PHARMACY COLLECTION FILTERS (Medical Store only: department_id = 1) ---
@@ -1166,15 +1170,17 @@ def collection_analytics_api(request):
     ei_other = float(ei_row[6] or 0.0)
 
     # 4. income_manager
+    # In node-backend / Laravel: 1=Cash, 2=Card/Swipe, 3=Cheque, 4=UPI, 5=NEFT
+    im_cash_expr = "0.0" if exclude_cash else "COALESCE(SUM(CASE WHEN im.payment_method IN (1, 2) THEN im.amount ELSE 0 END), 0)"
     im_sql = f"""
         SELECT 
             COALESCE(SUM(im.amount), 0) as gross_im,
             COUNT(im.id) as count_im,
-            COALESCE(SUM(CASE WHEN im.payment_method = 2 THEN im.amount ELSE 0 END), 0) as cash_amt,
+            {im_cash_expr} as cash_amt,
             COALESCE(SUM(CASE WHEN im.payment_method = 4 THEN im.amount ELSE 0 END), 0) as upi_amt,
             COALESCE(SUM(CASE WHEN im.payment_method = 3 THEN im.amount ELSE 0 END), 0) as cheque_amt,
             COALESCE(SUM(CASE WHEN im.payment_method = 5 THEN im.amount ELSE 0 END), 0) as neft_amt,
-            COALESCE(SUM(CASE WHEN im.payment_method NOT IN (2, 3, 4, 5) THEN im.amount ELSE 0 END), 0) as other_amt
+            COALESCE(SUM(CASE WHEN im.payment_method NOT IN (1, 2, 3, 4, 5) THEN im.amount ELSE 0 END), 0) as other_amt
         FROM income_manager im
         WHERE {im_where_sql}
     """
@@ -1330,13 +1336,13 @@ def collection_analytics_api(request):
             hc_monthly[ym] = {"gross_hc": 0.0, "return_hc": 0.0}
         hc_monthly[ym]["gross_hc"] += amt
 
-    # 3. Monthly embryology invoice
+    # 3. Monthly embryology invoice (parity with invoice voucher date)
     cursor.execute(f"""
         SELECT 
-            DATE_FORMAT(ei.created_at, '%%Y-%%m') as ym,
+            DATE_FORMAT({ei_date_col}, '%%Y-%%m') as ym,
             COALESCE(SUM({ei_gross_expr}), 0) as gross_ei
         FROM embryology_invoice ei
-        WHERE {ei_where_sql} AND ei.created_at IS NOT NULL
+        WHERE {ei_where_sql} AND {ei_date_col} IS NOT NULL
         GROUP BY ym
     """, ei_params)
     for r in cursor.fetchall():
@@ -1586,7 +1592,7 @@ def collection_analytics_api(request):
     ei_rec_query = f"""
         SELECT 
             ei.id,
-            ei.created_at,
+            {ei_date_col} as tr_date,
             'Embryology' as source,
             'Credit' as case_type,
             ({ei_gross_expr}) as amount,
@@ -1607,14 +1613,14 @@ def collection_analytics_api(request):
         LEFT JOIN patients p ON ei.patients_id = p.id
         LEFT JOIN branch b ON ei.branch_id = b.id
         WHERE {ei_where_sql}
-        ORDER BY ei.created_at DESC
+        ORDER BY tr_date DESC, ei.id DESC
         LIMIT 40
     """
     cursor.execute(ei_rec_query, ei_params)
     for r in cursor.fetchall():
         records.append({
             "id": f"EMB-{r[0]}",
-            "date": r[1].strftime("%Y-%m-%d %H:%M") if r[1] else "-",
+            "date": r[1].strftime("%Y-%m-%d %H:%M") if hasattr(r[1], "strftime") else (str(r[1]) if r[1] else "-"),
             "source": "Embryology / Andrology",
             "source_type": "healthcare",
             "is_return": False,
@@ -1640,11 +1646,11 @@ def collection_analytics_api(request):
             COALESCE(CONCAT(IFNULL(p.name, ''), ' ', IFNULL(p.surname, '')), im.given_by, 'Hospital Client') as patient_name,
             IFNULL(b.name, CONCAT('Branch ', im.branch_id)) as branch_name,
             CASE im.payment_method
-                WHEN 2 THEN 'Cash'
+                WHEN 1 THEN 'Cash'
+                WHEN 2 THEN 'Card/Swipe'
                 WHEN 4 THEN 'UPI'
                 WHEN 3 THEN 'Cheque'
                 WHEN 5 THEN 'NEFT/RTGS'
-                WHEN 1 THEN 'NetBanking'
                 ELSE 'Other'
             END as mode_str,
             COALESCE(im.note, im.description, im.income_category, 'General Receipt') as reference_note
