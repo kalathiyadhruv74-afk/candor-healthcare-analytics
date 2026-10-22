@@ -832,17 +832,17 @@ def collection_analytics_api(request):
         hc_where.append("d.payment_type != 2")
     hc_where_sql = " AND ".join(hc_where)
 
-    # --- 2. PHARMACY COLLECTION FILTERS ---
-    ph_where = ["1=1"]
+    # --- 2. PHARMACY COLLECTION FILTERS (Aligned with Pharmacy Report logic: mpi.date_of_transaction) ---
+    ph_where = ["mpi.is_deleted = 0"]
     ph_params = []
     if start_date:
-        ph_where.append("DATE(mph.date_of_transaction) >= %s")
+        ph_where.append("mpi.date_of_transaction >= %s")
         ph_params.append(start_date)
     if end_date:
-        ph_where.append("DATE(mph.date_of_transaction) <= %s")
+        ph_where.append("mpi.date_of_transaction <= %s")
         ph_params.append(end_date)
     if branch_id:
-        ph_where.append("mph.branch_id = %s")
+        ph_where.append("mpi.branch_id = %s")
         ph_params.append(branch_id)
     ph_where_sql = " AND ".join(ph_where)
 
@@ -862,11 +862,11 @@ def collection_analytics_api(request):
 
     # Cash expression switchers for pharmacy
     if exclude_cash:
-        ph_modes_expr = "(mph.payment_upi + mph.payment_cheque + mph.payment_neft)"
+        ph_modes_expr = "(COALESCE(mph.payment_upi, 0) + COALESCE(mph.payment_cheque, 0) + COALESCE(mph.payment_neft, 0))"
         pr_modes_expr = "(msc.payment_upi + msc.payment_cheque + msc.payment_neft)"
         pr_non_cash_ratio = "( (msc.payment_upi + msc.payment_cheque + msc.payment_neft) / NULLIF(msc.payable_amount, 0) )"
     else:
-        ph_modes_expr = "(mph.payment_cash + mph.payment_upi + mph.payment_cheque + mph.payment_neft)"
+        ph_modes_expr = "(COALESCE(mph.payment_cash, 0) + COALESCE(mph.payment_upi, 0) + COALESCE(mph.payment_cheque, 0) + COALESCE(mph.payment_neft, 0))"
         pr_modes_expr = "(msc.payment_cash + msc.payment_upi + msc.payment_cheque + msc.payment_neft)"
         pr_non_cash_ratio = "1.0"
 
@@ -912,13 +912,13 @@ def collection_analytics_api(request):
     ph_sql = f"""
         SELECT 
             SUM({ph_modes_expr} * ({ph_factor})) as total_pharmacy,
-            COUNT(CASE WHEN {ph_modes_expr} > 0 THEN 1 END) as count_pharmacy,
-            SUM(mph.payment_cash * ({ph_factor})) as cash_amt,
-            SUM(mph.payment_upi * ({ph_factor})) as upi_amt,
-            SUM(mph.payment_cheque * ({ph_factor})) as cheque_amt,
-            SUM(mph.payment_neft * ({ph_factor})) as neft_amt
-        FROM medication_payment_history mph
-        LEFT JOIN medication_patients_invoices mpi ON mph.medication_patients_invoice_id = mpi.id
+            COUNT(DISTINCT CASE WHEN {ph_modes_expr} > 0 THEN mpi.id ELSE NULL END) as count_pharmacy,
+            SUM(COALESCE(mph.payment_cash, 0) * ({ph_factor})) as cash_amt,
+            SUM(COALESCE(mph.payment_upi, 0) * ({ph_factor})) as upi_amt,
+            SUM(COALESCE(mph.payment_cheque, 0) * ({ph_factor})) as cheque_amt,
+            SUM(COALESCE(mph.payment_neft, 0) * ({ph_factor})) as neft_amt
+        FROM medication_patients_invoices mpi
+        LEFT JOIN medication_payment_history mph ON mph.medication_patients_invoice_id = mpi.id
         WHERE {ph_where_sql}
     """
     cursor.execute(ph_sql, ph_params)
@@ -1023,14 +1023,14 @@ def collection_analytics_api(request):
     """, hc_params)
     hc_monthly = {r[0]: {"gross_hc": float(r[1] or 0), "return_hc": float(r[2] or 0)} for r in cursor.fetchall()}
 
-    # Monthly pharmacy
+    # Monthly pharmacy (aligned to mpi.date_of_transaction)
     cursor.execute(f"""
         SELECT 
-            DATE_FORMAT(mph.date_of_transaction, '%%Y-%%m') as ym,
+            DATE_FORMAT(mpi.date_of_transaction, '%%Y-%%m') as ym,
             SUM({ph_modes_expr} * ({ph_factor})) as gross_ph
-        FROM medication_payment_history mph
-        LEFT JOIN medication_patients_invoices mpi ON mph.medication_patients_invoice_id = mpi.id
-        WHERE {ph_where_sql}
+        FROM medication_patients_invoices mpi
+        LEFT JOIN medication_payment_history mph ON mph.medication_patients_invoice_id = mpi.id
+        WHERE {ph_where_sql} AND mpi.date_of_transaction IS NOT NULL
         GROUP BY ym
         ORDER BY ym ASC
     """, ph_params)
@@ -1109,12 +1109,12 @@ def collection_analytics_api(request):
             GROUP BY branch_id
         ) hc ON hc.branch_id = b.id
         LEFT JOIN (
-            SELECT mph.branch_id,
+            SELECT mpi.branch_id,
                    SUM({ph_modes_expr} * ({ph_factor})) as gross_ph
-            FROM medication_payment_history mph
-            LEFT JOIN medication_patients_invoices mpi ON mph.medication_patients_invoice_id = mpi.id
+            FROM medication_patients_invoices mpi
+            LEFT JOIN medication_payment_history mph ON mph.medication_patients_invoice_id = mpi.id
             WHERE {ph_where_sql}
-            GROUP BY mph.branch_id
+            GROUP BY mpi.branch_id
         ) ph ON ph.branch_id = b.id
         LEFT JOIN (
             SELECT branch_id,
