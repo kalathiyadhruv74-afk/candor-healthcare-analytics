@@ -461,6 +461,114 @@
         .tag-emerald { background: #ECFDF5; color: #047857; }
         .tag-rose { background: #FFE4E6; color: #BE123C; }
 
+        /* 10 Revenue Streams Cards Grid */
+        .stream-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+
+        @media (max-width: 1200px) {
+            .stream-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stream-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stream-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .stream-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 16px 18px;
+            box-shadow: var(--shadow-card);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stream-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-elevated);
+        }
+
+        .stream-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .stream-card-icon {
+            font-size: 1.2rem;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: #F1F5F9;
+        }
+
+        .stream-card-name {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stream-card-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.4px;
+            margin-bottom: 4px;
+        }
+
+        .stream-card-meta {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .stream-card.highlight-total {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            border-color: #334155;
+            color: #FFFFFF;
+        }
+
+        .stream-card.highlight-total .stream-card-name {
+            color: #38BDF8;
+        }
+
+        .stream-card.highlight-total .stream-card-val {
+            color: #34D399;
+            font-size: 1.45rem;
+        }
+
+        .stream-card.highlight-total .stream-card-meta {
+            color: #94A3B8;
+        }
+
+        .stream-card.highlight-total .stream-card-icon {
+            background: rgba(56, 189, 248, 0.2);
+        }
+
         /* Hero Primary Summary Bar: Net Collection */
         .hero-banner {
             background: linear-gradient(135deg, #0F172A 0%, #1E293B 55%, #0F2A4A 100%);
@@ -936,6 +1044,148 @@
 
         </section>
 
+        <!-- 10 REVENUE STREAMS BREAKDOWN (Strict parity with reports/newCollectionReports) -->
+        <section style="margin-bottom: 28px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; margin: 0;">
+                    <span>🏥</span> Healthcare Revenue Streams &amp; Departmental Incomes
+                </h3>
+                <span class="kpi-tag tag-blue" style="font-weight: 700;">reports/newCollectionReports Parity</span>
+            </div>
+            
+            <div class="stream-grid" id="streamGridContainer">
+                <!-- 1. USG -->
+                <div class="stream-card">
+                    <div class="stream-card-head">
+                        <span class="stream-card-name">USG</span>
+                        <div class="stream-card-icon" style="color: #0284C7; background: #E0F2FE;">📡</div>
+                    </div>
+                    <div class="stream-card-val" id="streamVal_USG">₹ --</div>
+                    <div class="stream-card-meta">
+                        <span id="streamCnt_USG">-- Scans</span>
+                        <span style="font-weight: 700; color: #0284C7;">Sonography</span>
+                    </div>
+                </div>
+
+                <!-- 2. H.Inj -->
+                <div class="stream-card">
+                    <div class="stream-card-head">
+                        <span class="stream-card-name">H.Inj</span>
+                        <div class="stream-card-icon" style="color: #10B981; background: #ECFDF5;">💉</div>
+                    </div>
+                    <div class="stream-card-val" id="streamVal_H_INJ">₹ --</div>
+                    <div class="stream-card-meta">
+                        <span id="streamCnt_H_INJ">-- Injections</span>
+                        <span style="font-weight: 700; color: #10B981;">Hormon</span>
+                    </div>
+                </div>
+
+                <!-- 3. IUI -->
+                <div class="stream-card">
+                    <div class="stream-card-head">
+                        <span class="stream-card-name">IUI</span>
+                        <div class="stream-card-icon" style="color: #F59E0B; background: #FEF3C7;">🔬</div>
+                    </div>
+                    <div class="stream-card-val" id="streamVal_IUI">₹ --</div>
+                    <div class="stream-card-meta">
+                        <span id="streamCnt_IUI">-- Cycles</span>
+                        <span style="font-weight: 700; color: #F59E0B;">Insemination</span>
+                    </div>
+                </div>
+
+                <!-- 4. IVF -->
+                <div class="stream-card">
+                    <div class="stream-card-head">
+                        <span class="stream-card-name">IVF</span>
+                        <div class="stream-card-icon" style="color: #8B5CF6; background: #EDE9FE;">🧬</div>
+                    </div>
+                    <div class="stream-card-val" id="streamVal_IVF">₹ --</div>
+                    <div class="stream-card-meta">
+                        <span id="streamCnt_IVF">-- Treatments</span>
+                        <span style="font-weight: 700; color: #8B5CF6;">IVF / ICSI / FET</span>
+                    </div>
+                </div>
+
+                <!-- 5. OPD -->
+                <div class="stream-card">
+                    <div class="stream-card-head">
+                        <span class="stream-card-name">OPD</span>
+                        <div class="stream-card-icon" style="color: #06B6D4; background: #CFFAFE;">🩺</div>
+                    </div>
+                    <div class="stream-card-val" id="streamVal_OPD">₹ --</div>
+                    <div class="stream-card-meta">
+                        <span id="streamCnt_OPD">-- Patients</span>
+                        <span style="font-weight: 700; color: #06B6D4;">Consultation</span>
+                    </div>
+                </div>
+
+                <!-- 6. IPD -->
+                <div class="stream-card">
+                    <div class="stream-card-head">
+                        <span class="stream-card-name">IPD</span>
+                        <div class="stream-card-icon" style="color: #EC4899; background: #FCE7F3;">🛏️</div>
+                    </div>
+                    <div class="stream-card-val" id="streamVal_IPD">₹ --</div>
+                    <div class="stream-card-meta">
+                        <span id="streamCnt_IPD">-- Indoor</span>
+                        <span style="font-weight: 700; color: #EC4899;">Indoor Treatment</span>
+                    </div>
+                </div>
+
+                <!-- 7. O.Income -->
+                <div class="stream-card">
+                    <div class="stream-card-head">
+                        <span class="stream-card-name">O.Income</span>
+                        <div class="stream-card-icon" style="color: #F97316; background: #FFEDD5;">📈</div>
+                    </div>
+                    <div class="stream-card-val" id="streamVal_O_INCOME">₹ --</div>
+                    <div class="stream-card-meta">
+                        <span id="streamCnt_O_INCOME">-- Entries</span>
+                        <span style="font-weight: 700; color: #F97316;">Other Receipts</span>
+                    </div>
+                </div>
+
+                <!-- 8. Medicine Income -->
+                <div class="stream-card">
+                    <div class="stream-card-head">
+                        <span class="stream-card-name">Medicine Income</span>
+                        <div class="stream-card-icon" style="color: #14B8A6; background: #CCFBF1;">💊</div>
+                    </div>
+                    <div class="stream-card-val" id="streamVal_MEDICINE">₹ --</div>
+                    <div class="stream-card-meta">
+                        <span id="streamCnt_MEDICINE">-- Invoices</span>
+                        <span style="font-weight: 700; color: #14B8A6;">Pharmacy Sales</span>
+                    </div>
+                </div>
+
+                <!-- 9. Embryology Income -->
+                <div class="stream-card">
+                    <div class="stream-card-head">
+                        <span class="stream-card-name">Embryology Income</span>
+                        <div class="stream-card-icon" style="color: #6366F1; background: #E0E7FF;">🧪</div>
+                    </div>
+                    <div class="stream-card-val" id="streamVal_EMBRYOLOGY">₹ --</div>
+                    <div class="stream-card-meta">
+                        <span id="streamCnt_EMBRYOLOGY">-- Procedures</span>
+                        <span style="font-weight: 700; color: #6366F1;">Lab &amp; Andrology</span>
+                    </div>
+                </div>
+
+                <!-- 10. Total Income -->
+                <div class="stream-card highlight-total">
+                    <div class="stream-card-head">
+                        <span class="stream-card-name">Total Income</span>
+                        <div class="stream-card-icon">💎</div>
+                    </div>
+                    <div class="stream-card-val" id="streamVal_TOTAL_INCOME">₹ --</div>
+                    <div class="stream-card-meta">
+                        <span id="streamCnt_TOTAL_INCOME">-- Total Inflow</span>
+                        <span style="font-weight: 700; color: #34D399;">All Streams</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Hero Primary Summary: Net Collection (Final In-Hand) -->
         <section class="hero-banner">
             <div>
@@ -1219,6 +1469,21 @@
             document.getElementById('modeNeftPct').textContent = `${m.neft_pct}%`;
             document.getElementById('modeChequeVal').textContent = formatINR(m.cheque);
             document.getElementById('modeChequePct').textContent = `${m.cheque_pct}%`;
+
+            // Populate 10 Revenue Streams Cards (reports/newCollectionReports Parity)
+            if (s.categories_breakdown && Array.isArray(s.categories_breakdown)) {
+                s.categories_breakdown.forEach(cat => {
+                    const valEl = document.getElementById(`streamVal_${cat.key}`);
+                    const cntEl = document.getElementById(`streamCnt_${cat.key}`);
+                    if (valEl) {
+                        animateValue(`streamVal_${cat.key}`, cat.amount);
+                    }
+                    if (cntEl) {
+                        const cnt = Number(cat.count) || 0;
+                        cntEl.textContent = `${cnt.toLocaleString('en-IN')} ${cat.unit || 'Entries'}`;
+                    }
+                });
+            }
 
             // Render Charts
             renderMonthlyChart(data.monthly_trend);

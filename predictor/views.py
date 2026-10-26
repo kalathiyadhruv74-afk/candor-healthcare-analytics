@@ -1318,7 +1318,162 @@ def collection_analytics_api(request):
     im_neft = float(im_row[5] or 0.0)
     im_other = float(im_row[6] or 0.0)
 
-    # Combined Healthcare Aggregates (Excludes Hospital Income Manager as requested by user)
+    # --- 10 REVENUE STREAMS (Strict parity with node-backend getNewCollectionReport) ---
+    # 1. USG: appointments with usg_status = 1 and appointment_charges.usg IS NOT NULL
+    ac_usg_where = ["a.category_id != 7", "ac.usg IS NOT NULL", "a.usg_status = 1"]
+    ac_usg_params = []
+    if start_date:
+        ac_usg_where.append("a.date >= %s")
+        ac_usg_params.append(start_date)
+    if end_date:
+        ac_usg_where.append("a.date <= %s")
+        ac_usg_params.append(end_date)
+    if branch_id:
+        ac_usg_where.append("a.branch_id = %s")
+        ac_usg_params.append(branch_id)
+    if exclude_cash:
+        ac_usg_where.append("ac.payment_mode != 2")
+
+    cursor.execute(f"""
+        SELECT COALESCE(SUM(ac.usg), 0), COUNT(a.id)
+        FROM appointments a
+        JOIN appointment_charges ac ON ac.appointment_id = a.id
+        WHERE {" AND ".join(ac_usg_where)}
+    """, ac_usg_params)
+    usg_row = cursor.fetchone() or (0, 0)
+    stream_usg = float(usg_row[0] or 0.0)
+    stream_usg_cnt = int(usg_row[1] or 0)
+
+    # 2. H.Inj: indoor_deposits charge_type = 1, case_type = 'Credit'
+    hinj_where = ["d.is_deleted = 0", "d.case_type = 'Credit'", "d.charge_type = 1"]
+    hinj_params = []
+    if start_date:
+        hinj_where.append("DATE(d.created_at) >= %s")
+        hinj_params.append(start_date)
+    if end_date:
+        hinj_where.append("DATE(d.created_at) <= %s")
+        hinj_params.append(end_date)
+    if branch_id:
+        hinj_where.append("d.branch_id = %s")
+        hinj_params.append(branch_id)
+    if exclude_cash:
+        hinj_where.append("d.payment_type != 2")
+
+    cursor.execute(f"""
+        SELECT COALESCE(SUM(d.amount), 0), COUNT(d.id)
+        FROM indoor_deposits d
+        WHERE {" AND ".join(hinj_where)}
+    """, hinj_params)
+    hinj_row = cursor.fetchone() or (0, 0)
+    stream_hinj = float(hinj_row[0] or 0.0)
+    stream_hinj_cnt = int(hinj_row[1] or 0)
+
+    # 3. IUI: indoor_deposits charge_type = 3, case_type = 'Credit'
+    iui_where = ["d.is_deleted = 0", "d.case_type = 'Credit'", "d.charge_type = 3"]
+    iui_params = []
+    if start_date:
+        iui_where.append("DATE(d.created_at) >= %s")
+        iui_params.append(start_date)
+    if end_date:
+        iui_where.append("DATE(d.created_at) <= %s")
+        iui_params.append(end_date)
+    if branch_id:
+        iui_where.append("d.branch_id = %s")
+        iui_params.append(branch_id)
+    if exclude_cash:
+        iui_where.append("d.payment_type != 2")
+
+    cursor.execute(f"""
+        SELECT COALESCE(SUM(d.amount), 0), COUNT(d.id)
+        FROM indoor_deposits d
+        WHERE {" AND ".join(iui_where)}
+    """, iui_params)
+    iui_row = cursor.fetchone() or (0, 0)
+    stream_iui = float(iui_row[0] or 0.0)
+    stream_iui_cnt = int(iui_row[1] or 0)
+
+    # 4. IVF: indoor_deposits charge_type IN (2, 100, 101), case_type = 'Credit'
+    ivf_where = ["d.is_deleted = 0", "d.case_type = 'Credit'", "d.charge_type IN (2, 100, 101)"]
+    ivf_params = []
+    if start_date:
+        ivf_where.append("DATE(d.created_at) >= %s")
+        ivf_params.append(start_date)
+    if end_date:
+        ivf_where.append("DATE(d.created_at) <= %s")
+        ivf_params.append(end_date)
+    if branch_id:
+        ivf_where.append("d.branch_id = %s")
+        ivf_params.append(branch_id)
+    if exclude_cash:
+        ivf_where.append("d.payment_type != 2")
+
+    cursor.execute(f"""
+        SELECT COALESCE(SUM(d.amount), 0), COUNT(d.id)
+        FROM indoor_deposits d
+        WHERE {" AND ".join(ivf_where)}
+    """, ivf_params)
+    ivf_row = cursor.fetchone() or (0, 0)
+    stream_ivf = float(ivf_row[0] or 0.0)
+    stream_ivf_cnt = int(ivf_row[1] or 0)
+
+    # 5. OPD: appointment_charges netamount where category_id != 7
+    ac_opd_where = ["a.category_id != 7", "ac.netamount > 0"]
+    ac_opd_params = []
+    if start_date:
+        ac_opd_where.append("a.date >= %s")
+        ac_opd_params.append(start_date)
+    if end_date:
+        ac_opd_where.append("a.date <= %s")
+        ac_opd_params.append(end_date)
+    if branch_id:
+        ac_opd_where.append("a.branch_id = %s")
+        ac_opd_params.append(branch_id)
+    if exclude_cash:
+        ac_opd_where.append("ac.payment_mode != 2")
+
+    cursor.execute(f"""
+        SELECT COALESCE(SUM(ac.netamount), 0), COUNT(ac.id)
+        FROM appointments a
+        JOIN appointment_charges ac ON ac.appointment_id = a.id
+        WHERE {" AND ".join(ac_opd_where)}
+    """, ac_opd_params)
+    opd_row = cursor.fetchone() or (0, 0)
+    stream_opd = float(opd_row[0] or 0.0)
+    stream_opd_cnt = int(opd_row[1] or 0)
+
+    # 6. IPD: indoor_deposits charge_type = 4 (or other non-OPD indoor treatment deposits)
+    ipd_where = ["d.is_deleted = 0", "d.case_type = 'Credit'", "d.charge_type NOT IN (1, 2, 3, 100, 101)"]
+    ipd_params = []
+    if start_date:
+        ipd_where.append("DATE(d.created_at) >= %s")
+        ipd_params.append(start_date)
+    if end_date:
+        ipd_where.append("DATE(d.created_at) <= %s")
+        ipd_params.append(end_date)
+    if branch_id:
+        ipd_where.append("d.branch_id = %s")
+        ipd_params.append(branch_id)
+    if exclude_cash:
+        ipd_where.append("d.payment_type != 2")
+
+    cursor.execute(f"""
+        SELECT COALESCE(SUM(d.amount), 0), COUNT(d.id)
+        FROM indoor_deposits d
+        WHERE {" AND ".join(ipd_where)}
+    """, ipd_params)
+    ipd_row = cursor.fetchone() or (0, 0)
+    stream_ipd = float(ipd_row[0] or 0.0)
+    stream_ipd_cnt = int(ipd_row[1] or 0)
+
+    # 7. O.Income: income_manager
+    stream_oinc = round(im_gross, 2)
+    stream_oinc_cnt = im_count
+
+    # 9. Embryology Income
+    stream_emb = round(ei_gross, 2)
+    stream_emb_cnt = ei_count
+
+    # Combined Healthcare Aggregates (Healthcare Total = sum of clinical streams)
     combined_hc_gross = round(hc_gross + ac_gross + ei_gross, 2)
     combined_hc_credit_count = hc_credit_count + ac_count + ei_count
     combined_hc_cash = round(hc_cash + ac_cash + ei_cash, 2)
@@ -1782,6 +1937,28 @@ def collection_analytics_api(request):
     # Sort records descending by date
     records.sort(key=lambda x: x["date"], reverse=True)
 
+    # Total Income = USG + H.Inj + IUI + IVF + OPD + IPD + O.Income + Medicine Income + Embryology Income
+    stream_medicine = round(ph_gross, 2)
+    stream_medicine_cnt = ph_count
+    total_income_amount = round(
+        stream_usg + stream_hinj + stream_iui + stream_ivf + stream_opd +
+        stream_ipd + stream_oinc + stream_medicine + stream_emb,
+        2
+    )
+
+    categories_breakdown = [
+        {"key": "USG", "name": "USG", "amount": stream_usg, "count": stream_usg_cnt, "icon": "📡", "color": "#0284C7"},
+        {"key": "H_INJ", "name": "H.Inj", "amount": stream_hinj, "count": stream_hinj_cnt, "icon": "💉", "color": "#10B981"},
+        {"key": "IUI", "name": "IUI", "amount": stream_iui, "count": stream_iui_cnt, "icon": "🔬", "color": "#F59E0B"},
+        {"key": "IVF", "name": "IVF", "amount": stream_ivf, "count": stream_ivf_cnt, "icon": "🧬", "color": "#8B5CF6"},
+        {"key": "OPD", "name": "OPD", "amount": stream_opd, "count": stream_opd_cnt, "icon": "🩺", "color": "#06B6D4"},
+        {"key": "IPD", "name": "IPD", "amount": stream_ipd, "count": stream_ipd_cnt, "icon": "🛏️", "color": "#EC4899"},
+        {"key": "O_INCOME", "name": "O.Income", "amount": stream_oinc, "count": stream_oinc_cnt, "icon": "📈", "color": "#F97316"},
+        {"key": "MEDICINE", "name": "Medicine Income", "amount": stream_medicine, "count": stream_medicine_cnt, "icon": "💊", "color": "#14B8A6"},
+        {"key": "EMBRYOLOGY", "name": "Embryology Income", "amount": stream_emb, "count": stream_emb_cnt, "icon": "🧪", "color": "#6366F1"},
+        {"key": "TOTAL_INCOME", "name": "Total Income", "amount": total_income_amount, "count": stream_usg_cnt + stream_hinj_cnt + stream_iui_cnt + stream_ivf_cnt + stream_opd_cnt + stream_ipd_cnt + stream_oinc_cnt + stream_medicine_cnt + stream_emb_cnt, "icon": "💎", "color": "#0F172A"}
+    ]
+
     return JsonResponse({
         "status": "success",
         "exclude_gst": 1 if exclude_gst else 0,
@@ -1793,6 +1970,8 @@ def collection_analytics_api(request):
             "payment_return": total_payment_return,
             "healthcare_return": round(hc_return, 2),
             "pharmacy_return": round(pr_return, 2),
+            "total_income": total_income_amount,
+            "categories_breakdown": categories_breakdown,
             "transaction_counts": {
                 "healthcare_credits": hc_credit_count,
                 "healthcare_returns": hc_return_count,
