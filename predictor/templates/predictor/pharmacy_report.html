@@ -893,9 +893,31 @@
                     <span id="heroGstBadge" style="margin-left: 6px; padding: 2px 7px; border-radius: 10px; background: rgba(56, 189, 248, 0.25); color: #E0F2FE; font-size: 0.68rem;">(Without GST)</span>
                     <span id="heroMixExpBadge" style="display: none; margin-left: 6px; padding: 2px 8px; border-radius: 10px; background: rgba(244, 63, 94, 0.25); color: #FECDD3; font-size: 0.72rem; font-weight: 700;">MIX EXP Deducted: ₹ 0</span>
                 </div>
+                <!-- Dual Profit Display Container (Active in Net Profit mode) -->
+                <div id="heroDualProfitContainer" style="display: none; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: baseline; gap: 24px; flex-wrap: wrap;">
+                        <div>
+                            <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.6px; color: #38BDF8; font-weight: 800; margin-bottom: 2px;">Gross Profit</div>
+                            <div class="hero-value" id="kpiGrossProfitVal" style="color: #38BDF8; font-size: 2.2rem;">₹ --</div>
+                        </div>
+                        <div style="font-size: 1.6rem; color: #94A3B8; font-weight: 300;">-</div>
+                        <div>
+                            <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.6px; color: #FDA4AF; font-weight: 800; margin-bottom: 2px;">MIX EXP</div>
+                            <div class="hero-value" id="kpiMixExpVal" style="color: #FDA4AF; font-size: 2.2rem;">₹ --</div>
+                        </div>
+                        <div style="font-size: 1.6rem; color: #94A3B8; font-weight: 300;">=</div>
+                        <div>
+                            <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.6px; color: #34D399; font-weight: 800; margin-bottom: 2px;">Net Profit</div>
+                            <div class="hero-value" id="kpiNetProfitVal" style="color: #34D399; font-size: 2.6rem;">₹ --</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Single Value (Standard Collection or Gross Profit mode) -->
                 <div class="hero-value" id="kpiTotalCollection">₹ --</div>
                 <div class="hero-sub">
                     <span id="heroStandardCollContainer" style="display: none;"><strong>Standard Sales:</strong> <span id="kpiStandardColl" style="color: #BAE6FD;">₹ --</span> • </span>
+                    <span id="heroGrossProfitSubContainer" style="display: none;"><strong>Gross Profit:</strong> <span id="kpiGrossProfitSub" style="color: #38BDF8; font-weight: 700;">₹ --</span> • </span>
                     <span><strong>Total Billed:</strong> <span id="kpiTotalBilled" style="color: #BAE6FD;">₹ --</span></span>
                     <span>•</span>
                     <span><strong>Total Invoices:</strong> <span id="kpiTotalInvoices" style="color: #BAE6FD;">--</span></span>
@@ -1201,10 +1223,38 @@
             const mixExpBadgeEl = document.getElementById("heroMixExpBadge");
             const stdCollContainer = document.getElementById("heroStandardCollContainer");
             const kpiStandardColl = document.getElementById("kpiStandardColl");
+            const dualProfitContainer = document.getElementById("heroDualProfitContainer");
+            const singleCollEl = document.getElementById("kpiTotalCollection");
+            const grossSubContainer = document.getElementById("heroGrossProfitSubContainer");
+            const kpiGrossProfitSub = document.getElementById("kpiGrossProfitSub");
 
             let gstText = isWithoutGst ? "Without GST" : "Gross with GST";
 
-            if (isGross) {
+            if (isNet) {
+                if (heroTitleEl) heroTitleEl.textContent = "Net Profit & Gross Profit Breakdown";
+                if (badgeEl) {
+                    badgeEl.textContent = `(Net & Gross Profit - ${gstText})`;
+                    badgeEl.style.background = "rgba(16, 185, 129, 0.35)";
+                    badgeEl.style.color = "#A7F3D0";
+                }
+                if (mixExpBadgeEl) {
+                    mixExpBadgeEl.style.display = "inline";
+                    mixExpBadgeEl.textContent = `MIX EXP: ${formatINR(summary.mix_exp || 0)}`;
+                }
+                // Show Dual Hero Row
+                if (dualProfitContainer) {
+                    dualProfitContainer.style.display = "block";
+                    document.getElementById("kpiGrossProfitVal").textContent = formatINR(summary.gross_profit || 0);
+                    document.getElementById("kpiMixExpVal").textContent = formatINR(summary.mix_exp || 0);
+                    document.getElementById("kpiNetProfitVal").textContent = formatINR(summary.net_profit || 0);
+                }
+                if (singleCollEl) singleCollEl.style.display = "none";
+                if (stdCollContainer) {
+                    stdCollContainer.style.display = "inline";
+                    if (kpiStandardColl) kpiStandardColl.textContent = formatINR(summary.standard_collection);
+                }
+                if (grossSubContainer) grossSubContainer.style.display = "none";
+            } else if (isGross) {
                 if (heroTitleEl) heroTitleEl.textContent = "Total Gross Profit (Trading)";
                 if (badgeEl) {
                     badgeEl.textContent = `(Gross Profit - ${gstText})`;
@@ -1212,25 +1262,16 @@
                     badgeEl.style.color = "#BAE6FD";
                 }
                 if (mixExpBadgeEl) mixExpBadgeEl.style.display = "none";
-                if (stdCollContainer) {
-                    stdCollContainer.style.display = "inline";
-                    if (kpiStandardColl) kpiStandardColl.textContent = formatINR(summary.standard_collection);
-                }
-            } else if (isNet) {
-                if (heroTitleEl) heroTitleEl.textContent = "Total Net Profit (GP - MIX EXP)";
-                if (badgeEl) {
-                    badgeEl.textContent = `(Net Profit - ${gstText})`;
-                    badgeEl.style.background = "rgba(16, 185, 129, 0.35)";
-                    badgeEl.style.color = "#A7F3D0";
-                }
-                if (mixExpBadgeEl) {
-                    mixExpBadgeEl.style.display = "inline";
-                    mixExpBadgeEl.textContent = `MIX EXP Deducted: ${formatINR(summary.mix_exp || 0)}`;
+                if (dualProfitContainer) dualProfitContainer.style.display = "none";
+                if (singleCollEl) {
+                    singleCollEl.style.display = "block";
+                    singleCollEl.textContent = formatINR(summary.total_pharmacy_collection);
                 }
                 if (stdCollContainer) {
                     stdCollContainer.style.display = "inline";
                     if (kpiStandardColl) kpiStandardColl.textContent = formatINR(summary.standard_collection);
                 }
+                if (grossSubContainer) grossSubContainer.style.display = "none";
             } else {
                 if (heroTitleEl) heroTitleEl.textContent = "Total Pharmacy Collection";
                 if (badgeEl) {
@@ -1239,7 +1280,13 @@
                     badgeEl.style.color = isWithoutGst ? "#A7F3D0" : "#FDE68A";
                 }
                 if (mixExpBadgeEl) mixExpBadgeEl.style.display = "none";
+                if (dualProfitContainer) dualProfitContainer.style.display = "none";
+                if (singleCollEl) {
+                    singleCollEl.style.display = "block";
+                    singleCollEl.textContent = formatINR(summary.total_pharmacy_collection);
+                }
                 if (stdCollContainer) stdCollContainer.style.display = "none";
+                if (grossSubContainer) grossSubContainer.style.display = "none";
             }
 
             // 1. Populate Branches Dropdown Once
@@ -1254,8 +1301,7 @@
                 branchesPopulated = true;
             }
 
-            // 2. Render Hero Primary Banner
-            document.getElementById("kpiTotalCollection").textContent = formatINR(summary.total_pharmacy_collection);
+            // 2. Render Hero Primary Metrics
             document.getElementById("kpiTotalBilled").textContent = formatINR(summary.total_bill_amount);
             document.getElementById("kpiTotalInvoices").textContent = Number(summary.total_invoices).toLocaleString('en-IN');
             
@@ -1267,7 +1313,7 @@
             const rateValEl = document.getElementById("kpiCollectionRate");
             if (isNet) {
                 if (rateLabelEl) rateLabelEl.textContent = "Net Margin:";
-                if (rateValEl) rateValEl.textContent = `${summary.net_profit_margin_pct}%`;
+                if (rateValEl) rateValEl.textContent = `${summary.net_profit_margin_pct}% (GP: ${summary.profit_margin_pct}%)`;
             } else if (isGross) {
                 if (rateLabelEl) rateLabelEl.textContent = "Gross Margin:";
                 if (rateValEl) rateValEl.textContent = `${summary.profit_margin_pct}%`;
