@@ -872,12 +872,12 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label class="filter-label" for="filterViewMode">View Mode</label>
-                    <select id="filterViewMode" class="form-select" onchange="applyFilters()" style="font-weight: 700; color: #0F172A; border-color: #0284C7; background: #F8FAFC;">
-                        <option value="none" selected>- (None / Standard Collection)</option>
-                        <option value="gross_profit">Gross Profit</option>
-                        <option value="net_profit">Net Profit (GP - MIX EXP)</option>
-                    </select>
+                    <label class="filter-label" for="profitToggleBtn">Profit Mode</label>
+                    <button type="button" id="profitToggleBtn" onclick="toggleProfitMode()" style="background: #F8FAFC; color: #0F172A; border: 2px solid #CBD5E1; padding: 7px 14px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; align-self: flex-end;">
+                        <span id="profitToggleIcon" style="font-size: 1rem;">📈</span>
+                        <span id="profitToggleText">Show Net &amp; Gross Profit</span>
+                    </button>
+                    <input type="hidden" id="filterViewMode" value="none">
                 </div>
                 <button type="button" class="btn-filter" onclick="applyFilters()">Apply Filters</button>
                 <button type="button" class="btn-reset" onclick="resetFilters()">Reset</button>
@@ -1202,6 +1202,37 @@
                 console.error("Failed to fetch pharmacy analytics:", err);
             } finally {
                 hideLoader();
+            }
+        }
+
+        function toggleProfitMode() {
+            const modeInput = document.getElementById("filterViewMode");
+            const isProfitActive = (modeInput.value === "net_profit");
+            modeInput.value = isProfitActive ? "none" : "net_profit";
+            updateProfitButtonUI(!isProfitActive);
+            fetchPharmacyData();
+        }
+
+        function updateProfitButtonUI(isProfitActive) {
+            const btn = document.getElementById("profitToggleBtn");
+            const txt = document.getElementById("profitToggleText");
+            const icon = document.getElementById("profitToggleIcon");
+            if (!btn) return;
+
+            if (isProfitActive) {
+                btn.style.background = "linear-gradient(135deg, #059669 0%, #10B981 100%)";
+                btn.style.color = "#FFFFFF";
+                btn.style.borderColor = "#047857";
+                btn.style.boxShadow = "0 2px 8px rgba(5, 150, 105, 0.35)";
+                if (txt) txt.textContent = "Profit Mode: ON (Net & Gross)";
+                if (icon) icon.textContent = "✨";
+            } else {
+                btn.style.background = "#F8FAFC";
+                btn.style.color = "#0F172A";
+                btn.style.borderColor = "#CBD5E1";
+                btn.style.boxShadow = "none";
+                if (txt) txt.textContent = "Show Net & Gross Profit";
+                if (icon) icon.textContent = "📈";
             }
         }
 
@@ -1633,6 +1664,7 @@
             if (document.getElementById("filterViewMode")) {
                 document.getElementById("filterViewMode").value = "none";
             }
+            updateProfitButtonUI(false);
             fetchPharmacyData();
         }
 
