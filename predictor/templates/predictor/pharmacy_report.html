@@ -872,32 +872,35 @@
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label class="filter-label" for="profitToggleBtn">View Mode</label>
-                    <button type="button" id="profitToggleBtn" onclick="toggleProfitMode()" style="background: #F8FAFC; color: #0F172A; border: 2px solid #CBD5E1; padding: 7px 14px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; align-self: flex-end;">
-                        <span id="profitToggleIcon" style="font-size: 1rem;">📈</span>
-                        <span id="profitToggleText">Show Net Profit</span>
-                    </button>
-                    <input type="hidden" id="filterProfit" value="0">
+                    <label class="filter-label" for="filterViewMode">View Mode</label>
+                    <select id="filterViewMode" class="form-select" onchange="applyFilters()" style="font-weight: 700; color: #0F172A; border-color: #0284C7; background: #F8FAFC;">
+                        <option value="none" selected>- (None / Standard Collection)</option>
+                        <option value="gross_profit">Gross Profit</option>
+                        <option value="net_profit">Net Profit (GP - MIX EXP)</option>
+                    </select>
                 </div>
                 <button type="button" class="btn-filter" onclick="applyFilters()">Apply Filters</button>
                 <button type="button" class="btn-reset" onclick="resetFilters()">Reset</button>
             </div>
         </div>
 
-        <!-- Hero Primary Banner: Total Pharmacy Collection -->
+        <!-- Hero Primary Banner: Total Pharmacy Collection / Gross Profit / Net Profit -->
         <section class="hero-banner">
             <div>
                 <div class="hero-info-tag">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    Total Pharmacy Collection <span id="heroGstBadge" style="margin-left: 6px; padding: 2px 7px; border-radius: 10px; background: rgba(56, 189, 248, 0.25); color: #E0F2FE; font-size: 0.68rem;">(Without GST)</span>
+                    <span id="heroPrimaryTitle">Total Pharmacy Collection</span>
+                    <span id="heroGstBadge" style="margin-left: 6px; padding: 2px 7px; border-radius: 10px; background: rgba(56, 189, 248, 0.25); color: #E0F2FE; font-size: 0.68rem;">(Without GST)</span>
+                    <span id="heroMixExpBadge" style="display: none; margin-left: 6px; padding: 2px 8px; border-radius: 10px; background: rgba(244, 63, 94, 0.25); color: #FECDD3; font-size: 0.72rem; font-weight: 700;">MIX EXP Deducted: ₹ 0</span>
                 </div>
                 <div class="hero-value" id="kpiTotalCollection">₹ --</div>
                 <div class="hero-sub">
+                    <span id="heroStandardCollContainer" style="display: none;"><strong>Standard Sales:</strong> <span id="kpiStandardColl" style="color: #BAE6FD;">₹ --</span> • </span>
                     <span><strong>Total Billed:</strong> <span id="kpiTotalBilled" style="color: #BAE6FD;">₹ --</span></span>
                     <span>•</span>
                     <span><strong>Total Invoices:</strong> <span id="kpiTotalInvoices" style="color: #BAE6FD;">--</span></span>
                     <span>•</span>
-                    <span><strong>Collection Rate:</strong> <span id="kpiCollectionRate" style="color: #34D399; font-weight: 700;">--%</span></span>
+                    <span><strong id="kpiRateLabel">Collection Rate:</strong> <span id="kpiCollectionRate" style="color: #34D399; font-weight: 700;">--%</span></span>
                 </div>
             </div>
             <div class="hero-modes-pill">
@@ -1042,7 +1045,7 @@
                             <tr>
                                 <th>Branch Name</th>
                                 <th>Total Invoices</th>
-                                <th>Total Pharmacy Collection</th>
+                                <th id="branchTableMetricHeader">Total Pharmacy Collection</th>
                                 <th>IVF Medicine Income</th>
                                 <th>INF Medicine Income</th>
                                 <th>IUI Medicine Income</th>
@@ -1151,7 +1154,8 @@
             const branchId = document.getElementById("filterBranch").value;
             const categoryGroup = document.getElementById("filterCategory").value;
             const excludeGst = document.getElementById("filterGst").value;
-            const onlyProfit = document.getElementById("filterProfit").value;
+            const viewModeEl = document.getElementById("filterViewMode");
+            const viewMode = viewModeEl ? viewModeEl.value : "none";
 
             const params = new URLSearchParams();
             if (startDate) params.append("start_date", startDate);
@@ -1159,7 +1163,9 @@
             if (branchId) params.append("branch_id", branchId);
             if (categoryGroup) params.append("category_group", categoryGroup);
             params.append("exclude_gst", excludeGst);
-            params.append("only_profit", onlyProfit);
+            params.append("view_mode", viewMode);
+            // Backward compatibility
+            params.append("only_profit", viewMode !== "none" ? "1" : "0");
 
             try {
                 const response = await fetch(`/api/pharmacy-analytics/?${params.toString()}`);
@@ -1177,36 +1183,6 @@
             }
         }
 
-        function toggleProfitMode() {
-            const profitInput = document.getElementById("filterProfit");
-            const isProfitActive = profitInput.value === "1";
-            profitInput.value = isProfitActive ? "0" : "1";
-            updateProfitButtonUI(!isProfitActive);
-            fetchPharmacyData();
-        }
-
-        function updateProfitButtonUI(isProfitActive) {
-            const btn = document.getElementById("profitToggleBtn");
-            const txt = document.getElementById("profitToggleText");
-            const icon = document.getElementById("profitToggleIcon");
-
-            if (isProfitActive) {
-                btn.style.background = "linear-gradient(135deg, #059669 0%, #10B981 100%)";
-                btn.style.color = "#FFFFFF";
-                btn.style.borderColor = "#047857";
-                btn.style.boxShadow = "0 2px 8px rgba(5, 150, 105, 0.35)";
-                txt.textContent = "Profit Mode: ON";
-                icon.textContent = "✨";
-            } else {
-                btn.style.background = "#F8FAFC";
-                btn.style.color = "#0F172A";
-                btn.style.borderColor = "#CBD5E1";
-                btn.style.boxShadow = "none";
-                txt.textContent = "Show Net Profit";
-                icon.textContent = "📈";
-            }
-        }
-
         function renderDashboard(data) {
             const summary = data.summary;
             const categories = data.categories_breakdown;
@@ -1214,22 +1190,56 @@
             const branchBreakdown = data.branch_breakdown;
             const records = data.records;
             const isWithoutGst = data.exclude_gst;
-            const isProfitOnly = data.only_profit;
+            const viewMode = data.view_mode || "none";
+            const isGross = (viewMode === "gross_profit");
+            const isNet = (viewMode === "net_profit");
+            const isProfit = isGross || isNet;
 
             // Badges & Hero text update
-            const heroTag = document.querySelector(".hero-info-tag");
+            const heroTitleEl = document.getElementById("heroPrimaryTitle");
             const badgeEl = document.getElementById("heroGstBadge");
-            if (badgeEl) {
-                let gstText = isWithoutGst ? "Without GST" : "Gross with GST";
-                if (isProfitOnly) {
+            const mixExpBadgeEl = document.getElementById("heroMixExpBadge");
+            const stdCollContainer = document.getElementById("heroStandardCollContainer");
+            const kpiStandardColl = document.getElementById("kpiStandardColl");
+
+            let gstText = isWithoutGst ? "Without GST" : "Gross with GST";
+
+            if (isGross) {
+                if (heroTitleEl) heroTitleEl.textContent = "Total Gross Profit (Trading)";
+                if (badgeEl) {
+                    badgeEl.textContent = `(Gross Profit - ${gstText})`;
+                    badgeEl.style.background = "rgba(14, 165, 233, 0.35)";
+                    badgeEl.style.color = "#BAE6FD";
+                }
+                if (mixExpBadgeEl) mixExpBadgeEl.style.display = "none";
+                if (stdCollContainer) {
+                    stdCollContainer.style.display = "inline";
+                    if (kpiStandardColl) kpiStandardColl.textContent = formatINR(summary.standard_collection);
+                }
+            } else if (isNet) {
+                if (heroTitleEl) heroTitleEl.textContent = "Total Net Profit (GP - MIX EXP)";
+                if (badgeEl) {
                     badgeEl.textContent = `(Net Profit - ${gstText})`;
-                    badgeEl.style.background = "rgba(5, 150, 105, 0.35)";
+                    badgeEl.style.background = "rgba(16, 185, 129, 0.35)";
                     badgeEl.style.color = "#A7F3D0";
-                } else {
+                }
+                if (mixExpBadgeEl) {
+                    mixExpBadgeEl.style.display = "inline";
+                    mixExpBadgeEl.textContent = `MIX EXP Deducted: ${formatINR(summary.mix_exp || 0)}`;
+                }
+                if (stdCollContainer) {
+                    stdCollContainer.style.display = "inline";
+                    if (kpiStandardColl) kpiStandardColl.textContent = formatINR(summary.standard_collection);
+                }
+            } else {
+                if (heroTitleEl) heroTitleEl.textContent = "Total Pharmacy Collection";
+                if (badgeEl) {
                     badgeEl.textContent = `(${gstText})`;
                     badgeEl.style.background = isWithoutGst ? "rgba(16, 185, 129, 0.25)" : "rgba(245, 158, 11, 0.25)";
                     badgeEl.style.color = isWithoutGst ? "#A7F3D0" : "#FDE68A";
                 }
+                if (mixExpBadgeEl) mixExpBadgeEl.style.display = "none";
+                if (stdCollContainer) stdCollContainer.style.display = "none";
             }
 
             // 1. Populate Branches Dropdown Once
@@ -1253,10 +1263,17 @@
                 ? ((summary.total_pharmacy_collection / summary.total_bill_amount) * 100).toFixed(1) 
                 : 0;
             
-            if (isProfitOnly) {
-                document.getElementById("kpiCollectionRate").textContent = `${summary.profit_margin_pct}% Margin`;
+            const rateLabelEl = document.getElementById("kpiRateLabel");
+            const rateValEl = document.getElementById("kpiCollectionRate");
+            if (isNet) {
+                if (rateLabelEl) rateLabelEl.textContent = "Net Margin:";
+                if (rateValEl) rateValEl.textContent = `${summary.net_profit_margin_pct}%`;
+            } else if (isGross) {
+                if (rateLabelEl) rateLabelEl.textContent = "Gross Margin:";
+                if (rateValEl) rateValEl.textContent = `${summary.profit_margin_pct}%`;
             } else {
-                document.getElementById("kpiCollectionRate").textContent = `${collRate}%`;
+                if (rateLabelEl) rateLabelEl.textContent = "Collection Rate:";
+                if (rateValEl) rateValEl.textContent = `${collRate}%`;
             }
 
             // Payment modes
@@ -1275,7 +1292,10 @@
             const ancCat = categories.find(c => c.key === "ANC") || {};
             const gynecCat = categories.find(c => c.key === "GYNEC") || {};
 
-            const labelSuffix = isProfitOnly ? "Net Profit" : "Medicine Income";
+            let labelSuffix = "Medicine Income";
+            if (isGross) labelSuffix = "Gross Profit";
+            else if (isNet) labelSuffix = "Net Profit";
+
             document.querySelector(".income-card.ivf .income-label").textContent = `IVF ${labelSuffix}`;
             document.querySelector(".income-card.inf .income-label").textContent = `INF ${labelSuffix}`;
             document.querySelector(".income-card.iui .income-label").textContent = `IUI ${labelSuffix}`;
@@ -1317,23 +1337,26 @@
             });
 
             // 4. Render Monthly Trend Chart
-            renderTrendChart(monthlyTrend, isProfitOnly);
+            renderTrendChart(monthlyTrend, viewMode);
 
             // 5. Render Category Share Chart
             renderShareChart(categories);
 
             // 6. Render Branch Table
-            renderBranchTable(branchBreakdown, isProfitOnly);
+            renderBranchTable(branchBreakdown, viewMode);
 
             // 7. Render Invoices Table
-            renderInvoiceTable(records, isProfitOnly);
+            renderInvoiceTable(records, isProfit);
         }
 
-        function renderTrendChart(trendData, isProfitOnly) {
+        function renderTrendChart(trendData, viewMode) {
             const ctx = document.getElementById("monthlyTrendChart").getContext("2d");
             if (trendChartInstance) trendChartInstance.destroy();
 
-            const suffix = isProfitOnly ? "Profit" : "Medicine";
+            let suffix = "Medicine";
+            if (viewMode === "gross_profit") suffix = "Gross Profit";
+            else if (viewMode === "net_profit") suffix = "Net Profit";
+
             const labels = trendData.map(d => d.month);
             const ivfData = trendData.map(d => d.ivf_income);
             const ancData = trendData.map(d => d.anc_income);
@@ -1465,7 +1488,7 @@
             `).join('');
         }
 
-        function renderBranchTable(branches, isProfitOnly) {
+        function renderBranchTable(branches, viewMode) {
             const tbody = document.getElementById("branchTableBody");
             if (!branches || branches.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 25px;">No branch records found.</td></tr>`;
@@ -1473,7 +1496,13 @@
             }
 
             document.getElementById("branchCountBadge").textContent = `${branches.length} Branches Reported`;
-            const headerCol = isProfitOnly ? "Total Net Profit" : "Total Pharmacy Collection";
+            
+            const metricHeader = document.getElementById("branchTableMetricHeader");
+            if (metricHeader) {
+                if (viewMode === "gross_profit") metricHeader.textContent = "Total Gross Profit";
+                else if (viewMode === "net_profit") metricHeader.textContent = "Total Net Profit";
+                else metricHeader.textContent = "Total Pharmacy Collection";
+            }
 
             tbody.innerHTML = branches.map(b => `
                 <tr>
@@ -1497,7 +1526,7 @@
             `).join('');
         }
 
-        function renderInvoiceTable(records, isProfitOnly) {
+        function renderInvoiceTable(records, isProfit) {
             const tbody = document.getElementById("invoiceTableBody");
             if (!records || records.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 30px;">No patient medication invoices found.</td></tr>`;
@@ -1514,10 +1543,7 @@
                 else if (r.cheque > 0) pmode = "Cheque";
                 else if (r.neft > 0) pmode = "NEFT";
 
-                const mainVal = isProfitOnly ? r.collected : r.collected;
-                const profitBadge = isProfitOnly 
-                    ? `<span style="font-size: 0.72rem; color: #059669; font-weight: 700; background: #ECFDF5; padding: 2px 6px; border-radius: 4px;">Profit: ${formatINR(r.collected)}</span>` 
-                    : "";
+                const mainVal = r.collected;
 
                 return `
                     <tr>
@@ -1535,7 +1561,7 @@
                         <td>
                             <div style="display: flex; flex-direction: column;">
                                 <span class="currency-font" style="color: #059669; font-weight: 700;">${formatINR(mainVal)}</span>
-                                ${!isProfitOnly ? `<span style="font-size: 0.7rem; color: #64748B;">Margin: ${formatINR(r.collected_profit)}</span>` : ""}
+                                ${!isProfit ? `<span style="font-size: 0.7rem; color: #64748B;">Margin: ${formatINR(r.collected_profit)}</span>` : ""}
                             </div>
                         </td>
                         <td>
@@ -1558,8 +1584,9 @@
             document.getElementById("filterBranch").value = "";
             document.getElementById("filterCategory").value = "";
             document.getElementById("filterGst").value = "1";
-            document.getElementById("filterProfit").value = "0";
-            updateProfitButtonUI(false);
+            if (document.getElementById("filterViewMode")) {
+                document.getElementById("filterViewMode").value = "none";
+            }
             fetchPharmacyData();
         }
 

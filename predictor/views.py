@@ -273,7 +273,22 @@ def pharmacy_analytics_api(request):
     branch_id = request.GET.get("branch_id", "").strip()
     category_group = request.GET.get("category_group", "").strip()
     exclude_gst = request.GET.get("exclude_gst", "1").lower() in ("1", "true", "yes")
-    only_profit = request.GET.get("only_profit", "0").lower() in ("1", "true", "yes")
+    view_mode = request.GET.get("view_mode", "").strip().lower()
+    legacy_profit = request.GET.get("only_profit", "0").lower() in ("1", "true", "yes")
+    if not view_mode:
+        if legacy_profit:
+            view_mode = "net_profit"
+        else:
+            view_mode = "none"
+    elif view_mode in ("0", "false", "-", "standard"):
+        view_mode = "none"
+    elif view_mode in ("1", "true"):
+        view_mode = "net_profit"
+
+    is_gross_profit = (view_mode == "gross_profit")
+    is_net_profit = (view_mode == "net_profit")
+    is_profit_view = is_gross_profit or is_net_profit
+    only_profit = is_profit_view
 
     where_clauses = ["mpi.is_deleted = 0", "mpi.department_id = 1"]
     params = []
@@ -557,18 +572,113 @@ def pharmacy_analytics_api(request):
     raw_total_bill = total_bill_amount
     raw_profit_billed = float(s_row[25] or 0.0)
     raw_profit_collected = raw_profit_billed
-    profit_margin_pct = round((raw_profit_billed / raw_total_collection * 100), 1) if raw_total_collection > 0 else 0.0
+
+    # --- Node-Backend Trading Profit-Loss Calculation (Gross Profit & Net Profit = GP - MIX EXP) ---
+    b_sql = " AND branch_id = %s" if branch_id else ""
+    b_param = [branch_id] if branch_id else []
+
+    # 1. Stock Opening: date_of_transaction < start_date
+    if start_date:
+        cursor.execute(f"""
+            SELECT (SUM(in_qty * reference_unit_purchase_price_without_gst) - SUM(out_qty * reference_unit_purchase_price_without_gst))
+            FROM medication_transaction
+            WHERE department_id = 1 {b_sql} AND date_of_transaction < %s
+        """, b_param + [start_date])
+        stock_opening_amount = float(cursor.fetchone()[0] or 0.0)
+    else:
+        stock_opening_amount = 0.0
+
+    # 2. Purchase & Purchase Return
+    p_where = ["department_id = 1"]
+    p_params = []
+    if branch_id:
+        p_where.append("branch_id = %s")
+        p_params.append(branch_id)
+    if start_date:
+        p_where.append("date_of_transaction >= %s")
+        p_params.append(start_date)
+    if end_date:
+        p_where.append("date_of_transaction <= %s")
+        p_params.append(end_date)
+    p_where_sql = " AND ".join(p_where)
+
+    cursor.execute(f"SELECT COALESCE(SUM(taxable_amount), 0) FROM medication_purchase_invoices WHERE {p_where_sql}", p_params)
+    purchase_amount = float(cursor.fetchone()[0] or 0.0)
+
+    cursor.execute(f"SELECT COALESCE(SUM(price_without_gst), 0) FROM medication_purchase_debit WHERE {p_where_sql}", p_params)
+    purchase_return_amount = float(cursor.fetchone()[0] or 0.0)
+
+    # 3. Stock Closing: date_of_transaction <= end_date
+    if end_date:
+        cursor.execute(f"""
+            SELECT (SUM(in_qty * reference_unit_purchase_price_without_gst) - SUM(out_qty * reference_unit_purchase_price_without_gst))
+            FROM medication_transaction
+            WHERE department_id = 1 {b_sql} AND date_of_transaction <= %s
+        """, b_param + [end_date])
+        stock_closing_amount = float(cursor.fetchone()[0] or 0.0)
+    else:
+        cursor.execute(f"""
+            SELECT (SUM(in_qty * reference_unit_purchase_price_without_gst) - SUM(out_qty * reference_unit_purchase_price_without_gst))
+            FROM medication_transaction
+            WHERE department_id = 1 {b_sql}
+        """, b_param)
+        stock_closing_amount = float(cursor.fetchone()[0] or 0.0)
+
+    # 4. MIX EXP: type = 0 cash expenses from medication_cash_expenses
+    cursor.execute(f"""
+        SELECT COALESCE(SUM(amount), 0)
+        FROM medication_cash_expenses
+        WHERE type = 0 AND {p_where_sql}
+    """, p_params)
+    mix_exp_amount = float(cursor.fetchone()[0] or 0.0)
+
+    # 5. COGS & Gross Profit & Net Profit
+    cogs_amount = round(stock_opening_amount + (purchase_amount - purchase_return_amount) - stock_closing_amount, 2)
+    # Net sales is sales_coll - ret_coll (Taxable amount without GST)
+    trading_net_sales = sales_coll - ret_coll
+    gross_profit_amount = round(trading_net_sales - cogs_amount, 2)
+    net_profit_amount = round(gross_profit_amount - mix_exp_amount, 2)
+
+    # Apply Active View Mode to Main Display Metrics
+    if is_gross_profit:
+        display_collection = gross_profit_amount
+        prefix = "Gross Profit"
+    elif is_net_profit:
+        display_collection = net_profit_amount
+        prefix = "Net Profit"
+    else:
+        display_collection = total_pharmacy_collection
+        prefix = "Medicine Income"
+
+    # Distribute category profit proportionally if in profit mode
+    if is_profit_view and total_pharmacy_collection > 0:
+        cat_mult = (display_collection / total_pharmacy_collection)
+        disp_ivf = round(ivf_income * cat_mult, 2)
+        disp_anc = round(anc_income * cat_mult, 2)
+        disp_inf = round(inf_income * cat_mult, 2)
+        disp_gynec = round(gynec_income * cat_mult, 2)
+        disp_iui = round(iui_income * cat_mult, 2)
+        disp_other = round(other_income * cat_mult, 2)
+    else:
+        disp_ivf = ivf_income
+        disp_anc = anc_income
+        disp_inf = inf_income
+        disp_gynec = gynec_income
+        disp_iui = iui_income
+        disp_other = other_income
+
+    profit_margin_pct = round((gross_profit_amount / total_pharmacy_collection * 100), 1) if total_pharmacy_collection > 0 else 0.0
+    net_profit_margin_pct = round((net_profit_amount / total_pharmacy_collection * 100), 1) if total_pharmacy_collection > 0 else 0.0
 
     # Categories list with percentage share
-    prefix = "Net Profit" if only_profit else "Medicine Income"
     categories_breakdown = [
         {
             "key": "IVF",
             "name": f"IVF {prefix}",
-            "collection": ivf_income,
+            "collection": disp_ivf,
             "bill_amount": ivf_bill,
             "invoices": ivf_inv_cnt,
-            "pct": round((ivf_income / total_pharmacy_collection * 100), 1) if total_pharmacy_collection > 0 else 0,
+            "pct": round((disp_ivf / display_collection * 100), 1) if display_collection > 0 else 0,
             "color": "#0284C7",
             "bg_color": "rgba(2, 132, 199, 0.12)",
             "icon": "🧬"
@@ -576,10 +686,10 @@ def pharmacy_analytics_api(request):
         {
             "key": "ANC",
             "name": f"ANC {prefix}",
-            "collection": anc_income,
+            "collection": disp_anc,
             "bill_amount": anc_bill,
             "invoices": anc_inv_cnt,
-            "pct": round((anc_income / total_pharmacy_collection * 100), 1) if total_pharmacy_collection > 0 else 0,
+            "pct": round((disp_anc / display_collection * 100), 1) if display_collection > 0 else 0,
             "color": "#10B981",
             "bg_color": "rgba(16, 185, 129, 0.12)",
             "icon": "👶"
@@ -587,10 +697,10 @@ def pharmacy_analytics_api(request):
         {
             "key": "INF",
             "name": f"INF {prefix}",
-            "collection": inf_income,
+            "collection": disp_inf,
             "bill_amount": inf_bill,
             "invoices": inf_inv_cnt,
-            "pct": round((inf_income / total_pharmacy_collection * 100), 1) if total_pharmacy_collection > 0 else 0,
+            "pct": round((disp_inf / display_collection * 100), 1) if display_collection > 0 else 0,
             "color": "#8B5CF6",
             "bg_color": "rgba(139, 92, 246, 0.12)",
             "icon": "💊"
@@ -598,10 +708,10 @@ def pharmacy_analytics_api(request):
         {
             "key": "GYNEC",
             "name": f"GYNEC {prefix}",
-            "collection": gynec_income,
+            "collection": disp_gynec,
             "bill_amount": gynec_bill,
             "invoices": gynec_inv_cnt,
-            "pct": round((gynec_income / total_pharmacy_collection * 100), 1) if total_pharmacy_collection > 0 else 0,
+            "pct": round((disp_gynec / display_collection * 100), 1) if display_collection > 0 else 0,
             "color": "#EC4899",
             "bg_color": "rgba(236, 72, 153, 0.12)",
             "icon": "🌸"
@@ -609,10 +719,10 @@ def pharmacy_analytics_api(request):
         {
             "key": "IUI",
             "name": f"IUI {prefix}",
-            "collection": iui_income,
+            "collection": disp_iui,
             "bill_amount": iui_bill,
             "invoices": iui_inv_cnt,
-            "pct": round((iui_income / total_pharmacy_collection * 100), 1) if total_pharmacy_collection > 0 else 0,
+            "pct": round((disp_iui / display_collection * 100), 1) if display_collection > 0 else 0,
             "color": "#F59E0B",
             "bg_color": "rgba(245, 158, 11, 0.12)",
             "icon": "🔬"
@@ -620,10 +730,10 @@ def pharmacy_analytics_api(request):
         {
             "key": "OTHER",
             "name": f"Other {prefix}",
-            "collection": other_income,
+            "collection": disp_other,
             "bill_amount": other_bill,
             "invoices": other_inv_cnt,
-            "pct": round((other_income / total_pharmacy_collection * 100), 1) if total_pharmacy_collection > 0 else 0,
+            "pct": round((disp_other / display_collection * 100), 1) if display_collection > 0 else 0,
             "color": "#64748B",
             "bg_color": "rgba(100, 116, 139, 0.12)",
             "icon": "🏥"
@@ -925,22 +1035,35 @@ def pharmacy_analytics_api(request):
     return JsonResponse({
         "status": "success",
         "exclude_gst": exclude_gst,
+        "view_mode": view_mode,
         "only_profit": only_profit,
+        "is_gross_profit": is_gross_profit,
+        "is_net_profit": is_net_profit,
         "summary": {
             "total_invoices": total_invoices,
             "total_bill_amount": total_bill_amount,
-            "total_pharmacy_collection": total_pharmacy_collection,
-            "ivf_medicine_income": ivf_income,
-            "inf_medicine_income": inf_income,
-            "iui_medicine_income": iui_income,
-            "anc_medicine_income": anc_income,
-            "gynec_medicine_income": gynec_income,
-            "other_medicine_income": other_income,
+            "total_pharmacy_collection": display_collection,
+            "standard_collection": total_pharmacy_collection,
+            "gross_profit": gross_profit_amount,
+            "mix_exp": mix_exp_amount,
+            "net_profit": net_profit_amount,
+            "stock_opening": stock_opening_amount,
+            "purchase_amount": purchase_amount,
+            "purchase_return_amount": purchase_return_amount,
+            "stock_closing": stock_closing_amount,
+            "cogs": cogs_amount,
+            "ivf_medicine_income": disp_ivf,
+            "inf_medicine_income": disp_inf,
+            "iui_medicine_income": disp_iui,
+            "anc_medicine_income": disp_anc,
+            "gynec_medicine_income": disp_gynec,
+            "other_medicine_income": disp_other,
             "raw_total_collection": raw_total_collection,
             "raw_total_bill": raw_total_bill,
             "raw_profit_collected": raw_profit_collected,
             "raw_profit_billed": raw_profit_billed,
             "profit_margin_pct": profit_margin_pct,
+            "net_profit_margin_pct": net_profit_margin_pct,
             "payment_modes": {
                 "cash": total_cash,
                 "upi": total_upi,
@@ -961,6 +1084,7 @@ def pharmacy_analytics_api(request):
             "branch_id": branch_id,
             "category_group": category_group,
             "exclude_gst": exclude_gst,
+            "view_mode": view_mode,
             "only_profit": only_profit
         }
     })
