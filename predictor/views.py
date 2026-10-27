@@ -1641,12 +1641,12 @@ def collection_analytics_api(request):
     pr_neft = float(pr_row[5] or 0.0)
 
     # --- CORE KPI METRICS REQUESTED BY USER ---
-    # 1. Total Collection (Gross Combined Collection: Healthcare + Pharmacy Sales Register)
-    total_gross_collection = round(combined_hc_gross + ph_gross, 2)
     # 2. Total Healthcare Collection (Indoor deposits + OPD + Embryology + Income Manager)
     total_healthcare_collection = combined_hc_gross
     # 3. Total Pharmacy Collection (Net = Sales Register - Sales Return Register)
     total_pharmacy_collection = round(ph_gross - pr_return, 2)
+    # 1. Total Collection (Gross Combined Collection = Total Healthcare Collection + Total Pharmacy Collection)
+    total_gross_collection = round(total_healthcare_collection + total_pharmacy_collection, 2)
     # 4. PAYMENT RETURN (Hospital Refund/Debit + Pharmacy Credit Note/Sales Return Register)
     total_payment_return = round(hc_return + pr_return, 2)
     # 5. Collection (Net Final In-Hand Collection)
@@ -2035,7 +2035,8 @@ def collection_analytics_api(request):
 
     # Total Healthcare Collection = Total Income from all departmental healthcare streams (reports/newCollectionReports)
     total_healthcare_collection = total_income_amount
-    total_gross_collection = round(total_healthcare_collection + ph_gross, 2)
+    # Total Collection (Gross) = Total Healthcare Collection + Total Pharmacy Collection
+    total_gross_collection = round(total_healthcare_collection + total_pharmacy_collection, 2)
     # Total Pharmacy Collection is ALREADY net of pharmacy return (ph_gross - pr_return).
     # Net In-Hand Collection = Total Healthcare Collection + Total Pharmacy Collection - Healthcare Return
     net_collection = round(total_healthcare_collection + total_pharmacy_collection - hc_return, 2)
