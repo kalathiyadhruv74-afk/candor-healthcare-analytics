@@ -1424,7 +1424,7 @@ def collection_analytics_api(request):
     stream_ivf_cnt = int(ivf_row[1] or 0)
 
     # 5. OPD: In node-backend newCollectionReports, OPD charge amount = total - usg (category != 7)
-    ac_opd_where = ["a.category_id != 7"]
+    ac_opd_where = ["a.category_id != 7", "a.deleted_at IS NULL"]
     ac_opd_params = []
     if start_date:
         ac_opd_where.append("a.date >= %s")
