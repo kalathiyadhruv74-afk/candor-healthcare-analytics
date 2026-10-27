@@ -1451,14 +1451,12 @@ def collection_analytics_api(request):
     stream_opd = float(opd_row[0] or 0.0)
     stream_opd_cnt = int(opd_row[1] or 0)
 
-    # 6. IPD: indoor_deposits interim advances (charge_type = 4) + discharge settlement invoices (indoor_books/indoor_invoices) - debit refunds
-    # Rule 1: Exclude Medicare and Pediatric patients from General IPD
-    # Rule 2: Interims: charge_type = 4, case_type = 'Credit', is_deleted = 0, created_at BETWEEN start AND end
-    # Rule 3: Final settled invoices: indoor_books is_final_invoice = 1, final_invoice_date BETWEEN start AND end
-    # Rule 4: Handle refunds/debit: subtract case_type = 'Debit'
+    # 6. IPD: Option A - Pure Cash-Flow Collection Model (Daily Collection Report)
+    # Every rupee collected (interim advances & discharge settlements via indoor.controller auto-deposit) is in indoor_deposits.
+    # Net IPD Collection = SUM(Credit Deposits) - SUM(Debit Refunds)
+    # Strictly exclude Medicare and Pediatric records.
     ipd_dep_where = [
         "d.is_deleted = 0",
-        "d.case_type = 'Credit'",
         "d.charge_type = 4",
         "(d.is_medicare IS NULL OR d.is_medicare = 0)",
         "(d.is_pediatric IS NULL OR d.is_pediatric = 0)"
@@ -1480,81 +1478,16 @@ def collection_analytics_api(request):
         ipd_dep_where.append("d.payment_type != 2")
 
     cursor.execute(f"""
-        SELECT COALESCE(SUM(d.amount), 0), COUNT(d.id)
+        SELECT 
+            COALESCE(SUM(CASE WHEN d.case_type = 'Credit' THEN d.amount ELSE 0 END), 0) -
+            COALESCE(SUM(CASE WHEN d.case_type = 'Debit' THEN d.amount ELSE 0 END), 0) AS net_ipd_collection,
+            COUNT(CASE WHEN d.case_type = 'Credit' THEN d.id END) AS credit_cnt
         FROM indoor_deposits d
         WHERE {" AND ".join(ipd_dep_where)}
     """, ipd_dep_params)
     ipd_dep_row = cursor.fetchone() or (0, 0)
-    ipd_credit_amt = float(ipd_dep_row[0] or 0.0)
+    stream_ipd = round(float(ipd_dep_row[0] or 0.0), 2)
     stream_ipd_cnt = int(ipd_dep_row[1] or 0)
-
-    # IPD Final Settled Invoices (indoor_books + indoor_invoices)
-    ipd_inv_where = [
-        "ib.is_final_invoice = 1",
-        "ib.final_invoice_date IS NOT NULL",
-        "(ib.is_medicare_patient IS NULL OR ib.is_medicare_patient = 0)",
-        "(ib.is_pediatric_patient IS NULL OR ib.is_pediatric_patient = 0)"
-    ]
-    ipd_inv_params = []
-    if start_date:
-        ipd_inv_where.append("ib.final_invoice_date >= %s")
-        ipd_inv_params.append(start_date)
-    if end_date:
-        ipd_inv_where.append("ib.final_invoice_date <= %s")
-        ipd_inv_params.append(end_date)
-    if branch_id:
-        ipd_inv_where.append("ib.branch_id = %s")
-        ipd_inv_params.append(branch_id)
-    if payment_type:
-        ipd_inv_where.append("ii.payment_mode = %s")
-        ipd_inv_params.append(payment_type)
-    elif exclude_cash:
-        ipd_inv_where.append("ii.payment_mode != 2")
-
-    cursor.execute(f"""
-        SELECT COALESCE(SUM(ii.grand_total_amt), 0), COUNT(ii.id)
-        FROM indoor_books ib
-        LEFT JOIN indoor_invoices ii ON ii.booking_id = ib.id
-        WHERE {" AND ".join(ipd_inv_where)}
-    """, ipd_inv_params)
-    ipd_inv_row = cursor.fetchone() or (0, 0)
-    ipd_inv_amt = float(ipd_inv_row[0] or 0.0)
-    stream_ipd_cnt += int(ipd_inv_row[1] or 0)
-
-    # IPD Debit Refunds
-    ipd_deb_where = [
-        "d.is_deleted = 0",
-        "d.case_type = 'Debit'",
-        "d.charge_type = 4",
-        "(d.is_medicare IS NULL OR d.is_medicare = 0)",
-        "(d.is_pediatric IS NULL OR d.is_pediatric = 0)"
-    ]
-    ipd_deb_params = []
-    if start_date:
-        ipd_deb_where.append("d.created_at >= %s")
-        ipd_deb_params.append(f"{start_date} 00:00:00")
-    if end_date:
-        ipd_deb_where.append("d.created_at <= %s")
-        ipd_deb_params.append(f"{end_date} 23:59:59")
-    if branch_id:
-        ipd_deb_where.append("d.branch_id = %s")
-        ipd_deb_params.append(branch_id)
-    if payment_type:
-        ipd_deb_where.append("d.payment_type = %s")
-        ipd_deb_params.append(payment_type)
-    elif exclude_cash:
-        ipd_deb_where.append("d.payment_type != 2")
-
-    cursor.execute(f"""
-        SELECT COALESCE(SUM(d.amount), 0)
-        FROM indoor_deposits d
-        WHERE {" AND ".join(ipd_deb_where)}
-    """, ipd_deb_params)
-    ipd_deb_row = cursor.fetchone() or (0,)
-    ipd_debit_amt = float(ipd_deb_row[0] or 0.0)
-
-    # Net IPD Income = Interim Advances + Final Settlement Invoices - Debit Refunds
-    stream_ipd = round(ipd_credit_amt + ipd_inv_amt - ipd_debit_amt, 2)
 
     # 7. O.Income: income_manager with type=1, status=1 (excluding pediatric, medicare, and inactive/other)
     im_stream_where = [
