@@ -1628,7 +1628,9 @@ def collection_analytics_api(request):
     # 4. PAYMENT RETURN (Hospital Refund/Debit + Pharmacy Credit Note/Sales Return Register)
     total_payment_return = round(hc_return + pr_return, 2)
     # 5. Collection (Net Final In-Hand Collection)
-    net_collection = round(total_gross_collection - total_payment_return, 2)
+    # Total Pharmacy Collection is ALREADY net of pharmacy return (ph_gross - pr_return).
+    # Therefore, Net Collection = Total Healthcare Collection + Total Pharmacy Collection - Healthcare Return (do NOT double-deduct pharmacy return).
+    net_collection = round(total_healthcare_collection + total_pharmacy_collection - hc_return, 2)
 
     # Payment modes summary (Net)
     total_cash_net = 0.0 if exclude_cash else round(max(0.0, (combined_hc_cash + ph_cash) - pr_cash), 2)
@@ -2012,7 +2014,9 @@ def collection_analytics_api(request):
     # Total Healthcare Collection = Total Income from all departmental healthcare streams (reports/newCollectionReports)
     total_healthcare_collection = total_income_amount
     total_gross_collection = round(total_healthcare_collection + ph_gross, 2)
-    net_collection = round(total_gross_collection - total_payment_return, 2)
+    # Total Pharmacy Collection is ALREADY net of pharmacy return (ph_gross - pr_return).
+    # Net In-Hand Collection = Total Healthcare Collection + Total Pharmacy Collection - Healthcare Return
+    net_collection = round(total_healthcare_collection + total_pharmacy_collection - hc_return, 2)
 
     return JsonResponse({
         "status": "success",
