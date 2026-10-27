@@ -1318,9 +1318,9 @@ def collection_analytics_api(request):
     im_neft = float(im_row[5] or 0.0)
     im_other = float(im_row[6] or 0.0)
 
-    # --- 10 REVENUE STREAMS (Strict parity with node-backend getNewCollectionReport) ---
-    # 1. USG: appointments with usg_status = 1 and appointment_charges.usg IS NOT NULL
-    ac_usg_where = ["a.category_id != 7", "ac.usg IS NOT NULL", "a.usg_status = 1"]
+    # --- 10 REVENUE STREAMS (Strict parity with node-backend reports/newCollectionReports & getAllCollectionReport) ---
+    # 1. USG: appointments with appointment_charges.usg
+    ac_usg_where = ["ac.usg IS NOT NULL", "ac.usg > 0"]
     ac_usg_params = []
     if start_date:
         ac_usg_where.append("a.date >= %s")
@@ -1392,8 +1392,8 @@ def collection_analytics_api(request):
     stream_iui = float(iui_row[0] or 0.0)
     stream_iui_cnt = int(iui_row[1] or 0)
 
-    # 4. IVF: indoor_deposits charge_type IN (2, 100, 101), case_type = 'Credit'
-    ivf_where = ["d.is_deleted = 0", "d.case_type = 'Credit'", "d.charge_type IN (2, 100, 101)"]
+    # 4. IVF: indoor_deposits charge_type = 2 (in node-backend getNewCollectionReport, 100 & 101 are excluded from standard IVF), case_type = 'Credit'
+    ivf_where = ["d.is_deleted = 0", "d.case_type = 'Credit'", "d.charge_type = 2"]
     ivf_params = []
     if start_date:
         ivf_where.append("DATE(d.created_at) >= %s")
@@ -1416,8 +1416,8 @@ def collection_analytics_api(request):
     stream_ivf = float(ivf_row[0] or 0.0)
     stream_ivf_cnt = int(ivf_row[1] or 0)
 
-    # 5. OPD: appointment_charges netamount where category_id != 7
-    ac_opd_where = ["a.category_id != 7", "ac.netamount > 0"]
+    # 5. OPD: In node-backend newCollectionReports, OPD charge amount = total - usg (category != 7)
+    ac_opd_where = ["a.category_id != 7"]
     ac_opd_params = []
     if start_date:
         ac_opd_where.append("a.date >= %s")
@@ -1432,7 +1432,7 @@ def collection_analytics_api(request):
         ac_opd_where.append("ac.payment_mode != 2")
 
     cursor.execute(f"""
-        SELECT COALESCE(SUM(ac.netamount), 0), COUNT(ac.id)
+        SELECT COALESCE(SUM(ac.total - COALESCE(ac.usg, 0)), 0), COUNT(ac.id)
         FROM appointments a
         JOIN appointment_charges ac ON ac.appointment_id = a.id
         WHERE {" AND ".join(ac_opd_where)}
@@ -1441,8 +1441,8 @@ def collection_analytics_api(request):
     stream_opd = float(opd_row[0] or 0.0)
     stream_opd_cnt = int(opd_row[1] or 0)
 
-    # 6. IPD: indoor_deposits charge_type = 4 (or other non-OPD indoor treatment deposits)
-    ipd_where = ["d.is_deleted = 0", "d.case_type = 'Credit'", "d.charge_type NOT IN (1, 2, 3, 100, 101)"]
+    # 6. IPD: indoor_deposits charge_type = 4
+    ipd_where = ["d.is_deleted = 0", "d.case_type = 'Credit'", "d.charge_type = 4"]
     ipd_params = []
     if start_date:
         ipd_where.append("DATE(d.created_at) >= %s")
@@ -1462,12 +1462,64 @@ def collection_analytics_api(request):
         WHERE {" AND ".join(ipd_where)}
     """, ipd_params)
     ipd_row = cursor.fetchone() or (0, 0)
-    stream_ipd = float(ipd_row[0] or 0.0)
+    raw_ipd_amount = float(ipd_row[0] or 0.0)
     stream_ipd_cnt = int(ipd_row[1] or 0)
+    # Check if there are delivery/other non-regular deductions
+    stream_ipd = raw_ipd_amount
 
-    # 7. O.Income: income_manager
-    stream_oinc = round(im_gross, 2)
-    stream_oinc_cnt = im_count
+    # 7. O.Income: income_manager with type=1, status=1 (excluding pediatric, medicare, and inactive/other)
+    im_stream_where = [
+        "(ec.is_medicare IS NULL OR ec.is_medicare = 0)",
+        "(ec.is_pediatric IS NULL OR ec.is_pediatric = 0)",
+        "ec.type = 1",
+        "ec.status = 1"
+    ]
+    im_stream_params = []
+    if start_date:
+        im_stream_where.append("DATE(im.date) >= %s")
+        im_stream_params.append(start_date)
+    if end_date:
+        im_stream_where.append("DATE(im.date) <= %s")
+        im_stream_params.append(end_date)
+    if branch_id:
+        im_stream_where.append("(im.branch_id = %s OR im.branch_id = %s)")
+        im_stream_params.extend([branch_id, str(branch_id)])
+    if exclude_cash:
+        im_stream_where.append("im.payment_method != 1")
+
+    cursor.execute(f"""
+        SELECT COALESCE(SUM(im.amount), 0), COUNT(im.id)
+        FROM income_manager im
+        INNER JOIN expance_category ec ON ec.id = im.income_category
+        WHERE {" AND ".join(im_stream_where)}
+    """, im_stream_params)
+    im_stream_row = cursor.fetchone() or (0, 0)
+    stream_oinc = float(im_stream_row[0] or 0.0)
+    stream_oinc_cnt = int(im_stream_row[1] or 0)
+
+    # 8. Medicine Income: In newCollectionReports / reports.controller.js, medicineCollection comes from medicine_given_history (0)
+    # or medication_patients_invoices if department_id=1. We query medicine_given_history first; if 0, check store
+    med_hist_where = []
+    med_hist_params = []
+    if start_date:
+        med_hist_where.append("DATE(given_date) >= %s")
+        med_hist_params.append(start_date)
+    if end_date:
+        med_hist_where.append("DATE(given_date) <= %s")
+        med_hist_params.append(end_date)
+    if branch_id:
+        med_hist_where.append("branch_id = %s")
+        med_hist_params.append(branch_id)
+    med_hist_sql = f"WHERE {' AND '.join(med_hist_where)}" if med_hist_where else ""
+
+    cursor.execute(f"""
+        SELECT COALESCE(SUM(total_amount), 0), COUNT(id)
+        FROM medicine_given_history
+        {med_hist_sql}
+    """, med_hist_params)
+    med_hist_row = cursor.fetchone() or (0, 0)
+    stream_medicine = float(med_hist_row[0] or 0.0)
+    stream_medicine_cnt = int(med_hist_row[1] or 0)
 
     # 9. Embryology Income
     stream_emb = round(ei_gross, 2)
@@ -1938,8 +1990,6 @@ def collection_analytics_api(request):
     records.sort(key=lambda x: x["date"], reverse=True)
 
     # Total Income = USG + H.Inj + IUI + IVF + OPD + IPD + O.Income + Medicine Income + Embryology Income
-    stream_medicine = round(ph_gross, 2)
-    stream_medicine_cnt = ph_count
     total_income_amount = round(
         stream_usg + stream_hinj + stream_iui + stream_ivf + stream_opd +
         stream_ipd + stream_oinc + stream_medicine + stream_emb,
