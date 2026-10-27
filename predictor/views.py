@@ -2009,6 +2009,11 @@ def collection_analytics_api(request):
         {"key": "TOTAL_INCOME", "name": "Total Income", "amount": total_income_amount, "count": stream_usg_cnt + stream_hinj_cnt + stream_iui_cnt + stream_ivf_cnt + stream_opd_cnt + stream_ipd_cnt + stream_oinc_cnt + stream_medicine_cnt + stream_emb_cnt, "icon": "💎", "color": "#0F172A"}
     ]
 
+    # Total Healthcare Collection = Total Income from all departmental healthcare streams (reports/newCollectionReports)
+    total_healthcare_collection = total_income_amount
+    total_gross_collection = round(total_healthcare_collection + ph_gross, 2)
+    net_collection = round(total_gross_collection - total_payment_return, 2)
+
     return JsonResponse({
         "status": "success",
         "exclude_gst": 1 if exclude_gst else 0,
