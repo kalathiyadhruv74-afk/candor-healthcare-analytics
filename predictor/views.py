@@ -1525,14 +1525,14 @@ def collection_analytics_api(request):
     stream_emb = round(ei_gross, 2)
     stream_emb_cnt = ei_count
 
-    # Combined Healthcare Aggregates (Healthcare Total = sum of clinical streams)
-    combined_hc_gross = round(hc_gross + ac_gross + ei_gross, 2)
-    combined_hc_credit_count = hc_credit_count + ac_count + ei_count
-    combined_hc_cash = round(hc_cash + ac_cash + ei_cash, 2)
-    combined_hc_upi = round(hc_upi + ac_upi + ei_upi, 2)
-    combined_hc_cheque = round(hc_cheque + ac_cheque + ei_cheque, 2)
-    combined_hc_neft = round(hc_neft + ac_neft + ei_neft, 2)
-    combined_hc_other = round(hc_other + ac_other + ei_other, 2)
+    # Combined Healthcare Aggregates (Healthcare Total = sum of clinical streams + O.Income)
+    combined_hc_gross = round(hc_gross + ac_gross + ei_gross + stream_oinc, 2)
+    combined_hc_credit_count = hc_credit_count + ac_count + ei_count + stream_oinc_cnt
+    combined_hc_cash = round(hc_cash + ac_cash + ei_cash + im_cash, 2)
+    combined_hc_upi = round(hc_upi + ac_upi + ei_upi + im_upi, 2)
+    combined_hc_cheque = round(hc_cheque + ac_cheque + ei_cheque + im_cheque, 2)
+    combined_hc_neft = round(hc_neft + ac_neft + ei_neft + im_neft, 2)
+    combined_hc_other = round(hc_other + ac_other + ei_other + im_other, 2)
 
     # --- EXECUTE PHARMACY COLLECTION AGGREGATE (Sales Register: mpi) ---
     # Without GST: mpi.sell_price_without_gst
