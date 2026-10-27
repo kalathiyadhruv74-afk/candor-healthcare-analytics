@@ -1112,7 +1112,7 @@ def collection_analytics_api(request):
 
     # --- 1. HEALTHCARE FILTERS (Strict parity with node-backend getNewCollectionReport) ---
     # Component A: indoor_deposits (is_deleted = 0)
-    hc_where = ["d.is_deleted = 0"]
+    hc_where = ["d.case_type = 'Credit'"]
     hc_params = []
     if start_date:
         hc_where.append("DATE(d.created_at) >= %s")
@@ -1456,7 +1456,7 @@ def collection_analytics_api(request):
     # Net IPD Collection = SUM(Credit Deposits) - SUM(Debit Refunds)
     # Strictly exclude Medicare and Pediatric records.
     ipd_dep_where = [
-        "d.is_deleted = 0",
+        "d.case_type = 'Credit'",
         "d.charge_type = 4",
         "(d.is_medicare IS NULL OR d.is_medicare = 0)",
         "(d.is_pediatric IS NULL OR d.is_pediatric = 0)"
