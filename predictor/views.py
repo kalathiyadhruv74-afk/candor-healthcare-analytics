@@ -2647,19 +2647,24 @@ def opd_analytics_api(request):
     where_clauses = ['a.deleted_at IS NULL']
     params = []
 
+    from datetime import date
+    today = date.today()
+    default_start = today.strftime('%Y-%m-01')
+    default_end = today.strftime('%Y-%m-%d')
+
     if start_date:
         where_clauses.append('a.date >= %s')
         params.append(start_date)
     else:
         where_clauses.append('a.date >= %s')
-        params.append('2026-08-01')
+        params.append(default_start)
 
     if end_date:
         where_clauses.append('a.date <= %s')
         params.append(end_date)
     else:
         where_clauses.append('a.date <= %s')
-        params.append('2026-08-31')
+        params.append(default_end)
 
     if branch_id:
         where_clauses.append('a.branch_id = %s')

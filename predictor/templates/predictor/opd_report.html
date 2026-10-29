@@ -697,6 +697,22 @@
         let searchTimeout = null;
 
         document.addEventListener("DOMContentLoaded", function() {
+            // Set default date picker values dynamically to current month
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+
+            const startInput = document.getElementById("startDate");
+            const endInput = document.getElementById("endDate");
+
+            if (!startInput.value || startInput.value === "2026-08-01") {
+                startInput.value = `${year}-${month}-01`;
+            }
+            if (!endInput.value || endInput.value === "2026-08-31") {
+                endInput.value = `${year}-${month}-${day}`;
+            }
+
             loadOPDData();
         });
 
