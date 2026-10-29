@@ -767,15 +767,21 @@
         }
 
         function updateKPIs(summary, categories) {
-            document.getElementById("kpiTotalAppts").innerText = (summary.total_appointments || 0).toLocaleString();
-            document.getElementById("kpiAttendedOpd").innerText = (summary.attended_opd || 0).toLocaleString();
-            document.getElementById("kpiAttendanceRate").innerText = (summary.attendance_rate || 0) + "%";
-            document.getElementById("kpiNotAttended").innerText = (summary.not_attended || 0).toLocaleString();
-            document.getElementById("kpiNoShowRate").innerText = (summary.no_show_rate || 0) + "%";
+            const setTxt = (id, txt) => {
+                const el = document.getElementById(id);
+                if (el) el.innerText = txt;
+            };
+
+            setTxt("kpiTotalAppts", (summary.total_appointments || 0).toLocaleString());
+            setTxt("kpiAttendedOpd", (summary.attended_opd || 0).toLocaleString());
+            setTxt("kpiAttendanceRate", (summary.attendance_rate || 0) + "%");
+            setTxt("kpiNotAttended", (summary.not_attended || 0).toLocaleString());
+            setTxt("kpiNoShowRate", (summary.no_show_rate || 0) + "%");
 
             // Core Category OPD (1-6, 17, 18)
-            document.getElementById("kpiCoreCatAttended").innerText = (summary.core_cat_attended || 0).toLocaleString();
-            document.getElementById("kpiCoreCatTotal").innerText = (summary.core_cat_total || 0).toLocaleString();
+            setTxt("kpiCoreCatAttended", (summary.core_cat_attended || 0).toLocaleString());
+            setTxt("kpiCoreCatTotal", (summary.core_cat_total || 0).toLocaleString());
+            setTxt("kpiTopCategory", categories && categories.length > 0 ? categories[0].category_name : "-");
         }
 
         function populateFilters(filters) {
