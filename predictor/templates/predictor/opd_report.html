@@ -535,7 +535,7 @@
             </div>
         </div>
 
-        <!-- 4 Key Operational Metrics Cards -->
+        <!-- Key Operational Metrics Cards -->
         <div class="kpi-grid">
             <div class="kpi-card blue">
                 <div class="kpi-info">
@@ -545,6 +545,17 @@
                 </div>
                 <div class="kpi-icon">
                     <i class="fa-solid fa-calendar-check"></i>
+                </div>
+            </div>
+
+            <div class="kpi-card purple">
+                <div class="kpi-info">
+                    <h3>Core Clinical OPD (Cat 1-6, 17, 18)</h3>
+                    <div class="kpi-value" id="kpiCoreCatAttended">-</div>
+                    <div class="kpi-sub"><span id="kpiCoreCatTotal">-</span> total booked | IVF, INF, ANC &amp; GYNEC</div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-hospital-user"></i>
                 </div>
             </div>
 
@@ -567,17 +578,6 @@
                 </div>
                 <div class="kpi-icon">
                     <i class="fa-solid fa-user-xmark"></i>
-                </div>
-            </div>
-
-            <div class="kpi-card purple">
-                <div class="kpi-info">
-                    <h3>Clinical Inflow Mix</h3>
-                    <div class="kpi-value" id="kpiTopCategory">-</div>
-                    <div class="kpi-sub">Highest Patient Category volume</div>
-                </div>
-                <div class="kpi-icon">
-                    <i class="fa-solid fa-hospital-user"></i>
                 </div>
             </div>
         </div>
@@ -751,11 +751,9 @@
             document.getElementById("kpiNotAttended").innerText = (summary.not_attended || 0).toLocaleString();
             document.getElementById("kpiNoShowRate").innerText = (summary.no_show_rate || 0) + "%";
 
-            if (categories && categories.length > 0) {
-                document.getElementById("kpiTopCategory").innerText = categories[0].category_name;
-            } else {
-                document.getElementById("kpiTopCategory").innerText = "-";
-            }
+            // Core Category OPD (1-6, 17, 18)
+            document.getElementById("kpiCoreCatAttended").innerText = (summary.core_cat_attended || 0).toLocaleString();
+            document.getElementById("kpiCoreCatTotal").innerText = (summary.core_cat_total || 0).toLocaleString();
         }
 
         function populateFilters(filters) {

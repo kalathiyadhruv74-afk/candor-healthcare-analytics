@@ -2677,12 +2677,15 @@ def opd_analytics_api(request):
     where_sql = ' AND '.join(where_clauses)
     cursor = connection.cursor()
 
-    summary_sql = "SELECT COUNT(*) as total_appointments, SUM(CASE WHEN a.is_done = 1 THEN 1 ELSE 0 END) as attended_count, SUM(CASE WHEN a.is_done = 0 THEN 1 ELSE 0 END) as not_attended_count FROM appointments a WHERE " + where_sql
+    summary_sql = "SELECT COUNT(*) as total_appointments, SUM(CASE WHEN a.is_done = 1 THEN 1 ELSE 0 END) as attended_count, SUM(CASE WHEN a.is_done = 0 THEN 1 ELSE 0 END) as not_attended_count, SUM(CASE WHEN CAST(a.category_id AS UNSIGNED) IN (1, 2, 3, 4, 5, 6, 17, 18) THEN 1 ELSE 0 END) as core_cat_total, SUM(CASE WHEN CAST(a.category_id AS UNSIGNED) IN (1, 2, 3, 4, 5, 6, 17, 18) AND a.is_done = 1 THEN 1 ELSE 0 END) as core_cat_attended, SUM(CASE WHEN CAST(a.category_id AS UNSIGNED) IN (1, 2, 3, 4, 5, 6, 17, 18) AND a.is_done = 0 THEN 1 ELSE 0 END) as core_cat_not_attended FROM appointments a WHERE " + where_sql
     cursor.execute(summary_sql, params)
     s_row = cursor.fetchone()
     total_appts = int(s_row[0] or 0)
     attended_count = int(s_row[1] or 0)
     not_attended_count = int(s_row[2] or 0)
+    core_cat_total = int(s_row[3] or 0)
+    core_cat_attended = int(s_row[4] or 0)
+    core_cat_not_attended = int(s_row[5] or 0)
     attendance_rate = round((attended_count / total_appts * 100), 1) if total_appts > 0 else 0
     no_show_rate = round((not_attended_count / total_appts * 100), 1) if total_appts > 0 else 0
 
@@ -2771,6 +2774,9 @@ def opd_analytics_api(request):
             'total_appointments': total_appts,
             'attended_opd': attended_count,
             'not_attended': not_attended_count,
+            'core_cat_total': core_cat_total,
+            'core_cat_attended': core_cat_attended,
+            'core_cat_not_attended': core_cat_not_attended,
             'attendance_rate': attendance_rate,
             'no_show_rate': no_show_rate
         },
