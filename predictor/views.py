@@ -1451,7 +1451,45 @@ def collection_analytics_api(request):
     stream_opd = float(opd_row[0] or 0.0)
     stream_opd_cnt = int(opd_row[1] or 0)
 
-    # 6. IPD: Strictly matches Candor legacy getNewCollectionReport (indoorCaseDeposit = Credit deposits with charge_type = 4)
+    # 6. IPD: Matches Candor getNewCollectionReport & getCollectionReportLaravelRaw exactly
+    # Total IPD = Indoor Final Invoices (grand_total_amt) + Indoor Case Deposits (amount with charge_type = 4)
+    
+    # 6a. Indoor Final Settlement Invoices (indoor_books & indoor_invoices)
+    ipd_inv_where = [
+        "ib.is_final_invoice = 1",
+        "ib.final_invoice_date IS NOT NULL",
+        "(ib.is_medicare_patient IS NULL OR ib.is_medicare_patient = 0)",
+        "(ib.is_pediatric_patient IS NULL OR ib.is_pediatric_patient = 0)"
+    ]
+    ipd_inv_params = []
+    if start_date:
+        ipd_inv_where.append("ib.final_invoice_date >= %s")
+        ipd_inv_params.append(f"{start_date} 00:00:00")
+    if end_date:
+        ipd_inv_where.append("ib.final_invoice_date <= %s")
+        ipd_inv_params.append(f"{end_date} 23:59:59")
+    if branch_id:
+        ipd_inv_where.append("ib.branch_id = %s")
+        ipd_inv_params.append(branch_id)
+    if payment_type:
+        ipd_inv_where.append("ii.payment_mode = %s")
+        ipd_inv_params.append(payment_type)
+    elif exclude_cash:
+        ipd_inv_where.append("ii.payment_mode != 2")
+
+    cursor.execute(f"""
+        SELECT 
+            COALESCE(SUM(ii.grand_total_amt), 0),
+            COUNT(ii.id)
+        FROM indoor_books ib
+        LEFT JOIN indoor_invoices ii ON ii.booking_id = ib.id
+        WHERE {" AND ".join(ipd_inv_where)}
+    """, ipd_inv_params)
+    ipd_inv_row = cursor.fetchone() or (0, 0)
+    ipd_inv_total = float(ipd_inv_row[0] or 0.0)
+    ipd_inv_cnt = int(ipd_inv_row[1] or 0)
+
+    # 6b. Indoor Case Deposits (Credit with charge_type = 4)
     ipd_dep_where = [
         "d.case_type = 'Credit'",
         "d.charge_type = 4",
@@ -1482,8 +1520,12 @@ def collection_analytics_api(request):
         WHERE {" AND ".join(ipd_dep_where)}
     """, ipd_dep_params)
     ipd_dep_row = cursor.fetchone() or (0, 0)
-    stream_ipd = round(float(ipd_dep_row[0] or 0.0), 2)
-    stream_ipd_cnt = int(ipd_dep_row[1] or 0)
+    ipd_dep_total = float(ipd_dep_row[0] or 0.0)
+    ipd_dep_cnt = int(ipd_dep_row[1] or 0)
+
+    # Combined IPD = Invoices + Deposits
+    stream_ipd = round(ipd_inv_total + ipd_dep_total, 2)
+    stream_ipd_cnt = ipd_inv_cnt + ipd_dep_cnt
 
     # 7. O.Income: income_manager with type=1, status=1 (excluding pediatric, medicare, and inactive/other)
     im_stream_where = [
