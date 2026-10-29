@@ -1451,12 +1451,9 @@ def collection_analytics_api(request):
     stream_opd = float(opd_row[0] or 0.0)
     stream_opd_cnt = int(opd_row[1] or 0)
 
-    # 6. IPD: Option A - Pure Cash-Flow Collection Model (Daily Collection Report)
-    # Every rupee collected (interim advances & discharge settlements via indoor.controller auto-deposit) is in indoor_deposits.
-    # Net IPD Collection = SUM(Credit Deposits) - SUM(Debit Refunds)
-    # Strictly exclude Medicare and Pediatric records.
+    # 6. IPD: Strictly matches Candor legacy getNewCollectionReport (indoorCaseDeposit = Credit deposits with charge_type = 4)
     ipd_dep_where = [
-        "d.is_deleted = 0",
+        "d.case_type = 'Credit'",
         "d.charge_type = 4",
         "(d.is_medicare IS NULL OR d.is_medicare = 0)",
         "(d.is_pediatric IS NULL OR d.is_pediatric = 0)"
@@ -1479,9 +1476,8 @@ def collection_analytics_api(request):
 
     cursor.execute(f"""
         SELECT 
-            COALESCE(SUM(CASE WHEN d.case_type = 'Credit' THEN d.amount ELSE 0 END), 0) -
-            COALESCE(SUM(CASE WHEN d.case_type = 'Debit' THEN d.amount ELSE 0 END), 0) AS net_ipd_collection,
-            COUNT(CASE WHEN d.case_type = 'Credit' THEN d.id END) AS credit_cnt
+            COALESCE(SUM(d.amount), 0) AS net_ipd_collection,
+            COUNT(d.id) AS credit_cnt
         FROM indoor_deposits d
         WHERE {" AND ".join(ipd_dep_where)}
     """, ipd_dep_params)
