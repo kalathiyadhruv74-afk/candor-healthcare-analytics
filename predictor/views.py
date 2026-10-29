@@ -2694,6 +2694,9 @@ def opd_analytics_api(request):
     elif status_filter == 'not_attended':
         where_clauses.append('a.is_done = 0')
 
+    # Exclude IVF donors (when category is IVF and patient is_donor = 1)
+    where_clauses.append('NOT (CAST(a.category_id AS UNSIGNED) IN (1, 2, 11, 14, 50) AND COALESCE(p.is_donor, 0) = 1)')
+
     where_sql = ' AND '.join(where_clauses)
     cursor = connection.cursor()
 
@@ -2713,6 +2716,7 @@ def opd_analytics_api(request):
                 MAX(a.is_done) as visit_done,
                 MAX(CASE WHEN CAST(a.category_id AS UNSIGNED) IN (1, 2, 3, 4, 5, 6, 17, 18) THEN 1 ELSE 0 END) as is_core
             FROM appointments a
+            LEFT JOIN patients p ON a.patients_id = p.id
             WHERE {where_sql}
             GROUP BY a.patients_id, a.date
         ) v
@@ -2743,6 +2747,7 @@ def opd_analytics_api(request):
                 a.category_id,
                 MAX(a.is_done) as visit_done
             FROM appointments a
+            LEFT JOIN patients p ON a.patients_id = p.id
             WHERE {where_sql}
             GROUP BY a.patients_id, a.date, a.category_id
         ) v
@@ -2781,6 +2786,7 @@ def opd_analytics_api(request):
                 a.branch_id,
                 MAX(a.is_done) as visit_done
             FROM appointments a
+            LEFT JOIN patients p ON a.patients_id = p.id
             WHERE {where_sql}
             GROUP BY a.patients_id, a.date, a.branch_id
         ) v
@@ -2817,6 +2823,7 @@ def opd_analytics_api(request):
                 a.date,
                 MAX(a.is_done) as visit_done
             FROM appointments a
+            LEFT JOIN patients p ON a.patients_id = p.id
             WHERE {where_sql}
             GROUP BY a.patients_id, a.date
         ) v
