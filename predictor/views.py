@@ -2697,7 +2697,26 @@ def opd_analytics_api(request):
     where_sql = ' AND '.join(where_clauses)
     cursor = connection.cursor()
 
-    summary_sql = "SELECT COUNT(*) as total_appointments, SUM(CASE WHEN a.is_done = 1 THEN 1 ELSE 0 END) as attended_count, SUM(CASE WHEN a.is_done = 0 THEN 1 ELSE 0 END) as not_attended_count, SUM(CASE WHEN CAST(a.category_id AS UNSIGNED) IN (1, 2, 3, 4, 5, 6, 17, 18) THEN 1 ELSE 0 END) as core_cat_total, SUM(CASE WHEN CAST(a.category_id AS UNSIGNED) IN (1, 2, 3, 4, 5, 6, 17, 18) AND a.is_done = 1 THEN 1 ELSE 0 END) as core_cat_attended, SUM(CASE WHEN CAST(a.category_id AS UNSIGNED) IN (1, 2, 3, 4, 5, 6, 17, 18) AND a.is_done = 0 THEN 1 ELSE 0 END) as core_cat_not_attended FROM appointments a WHERE " + where_sql
+    # Deduplicate same-day visits (Option B: 1 visit per patient per day)
+    summary_sql = f"""
+        SELECT 
+            COUNT(*) as total_daily_visits,
+            SUM(CASE WHEN v.visit_done = 1 THEN 1 ELSE 0 END) as attended_count,
+            SUM(CASE WHEN v.visit_done = 0 THEN 1 ELSE 0 END) as not_attended_count,
+            SUM(CASE WHEN v.is_core = 1 THEN 1 ELSE 0 END) as core_cat_total,
+            SUM(CASE WHEN v.is_core = 1 AND v.visit_done = 1 THEN 1 ELSE 0 END) as core_cat_attended,
+            SUM(CASE WHEN v.is_core = 1 AND v.visit_done = 0 THEN 1 ELSE 0 END) as core_cat_not_attended
+        FROM (
+            SELECT 
+                a.patients_id, 
+                a.date,
+                MAX(a.is_done) as visit_done,
+                MAX(CASE WHEN CAST(a.category_id AS UNSIGNED) IN (1, 2, 3, 4, 5, 6, 17, 18) THEN 1 ELSE 0 END) as is_core
+            FROM appointments a
+            WHERE {where_sql}
+            GROUP BY a.patients_id, a.date
+        ) v
+    """
     cursor.execute(summary_sql, params)
     s_row = cursor.fetchone()
     total_appts = int(s_row[0] or 0)
@@ -2709,7 +2728,28 @@ def opd_analytics_api(request):
     attendance_rate = round((attended_count / total_appts * 100), 1) if total_appts > 0 else 0
     no_show_rate = round((not_attended_count / total_appts * 100), 1) if total_appts > 0 else 0
 
-    cat_sql = "SELECT COALESCE(c.id, 0) as category_id, COALESCE(c.name, 'Unassigned') as category_name, COUNT(*) as total_count, SUM(CASE WHEN a.is_done = 1 THEN 1 ELSE 0 END) as attended_count, SUM(CASE WHEN a.is_done = 0 THEN 1 ELSE 0 END) as not_attended_count FROM appointments a LEFT JOIN category c ON CAST(a.category_id AS UNSIGNED) = c.id WHERE " + where_sql + " GROUP BY c.id, c.name ORDER BY total_count DESC"
+    # Category breakdown (deduplicated per patient per date)
+    cat_sql = f"""
+        SELECT 
+            COALESCE(c.id, 0) as category_id,
+            COALESCE(c.name, 'Unassigned') as category_name,
+            COUNT(*) as total_count,
+            SUM(CASE WHEN v.visit_done = 1 THEN 1 ELSE 0 END) as attended_count,
+            SUM(CASE WHEN v.visit_done = 0 THEN 1 ELSE 0 END) as not_attended_count
+        FROM (
+            SELECT 
+                a.patients_id,
+                a.date,
+                a.category_id,
+                MAX(a.is_done) as visit_done
+            FROM appointments a
+            WHERE {where_sql}
+            GROUP BY a.patients_id, a.date, a.category_id
+        ) v
+        LEFT JOIN category c ON CAST(v.category_id AS UNSIGNED) = c.id
+        GROUP BY c.id, c.name
+        ORDER BY total_count DESC
+    """
     cursor.execute(cat_sql, params)
     categories = []
     for r in cursor.fetchall():
@@ -2726,7 +2766,28 @@ def opd_analytics_api(request):
             'no_show_rate': round((c_not / c_tot * 100), 1) if c_tot > 0 else 0,
         })
 
-    branch_sql = "SELECT COALESCE(b.id, 0) as branch_id, COALESCE(b.name, 'Unassigned') as branch_name, COUNT(*) as total_count, SUM(CASE WHEN a.is_done = 1 THEN 1 ELSE 0 END) as attended_count, SUM(CASE WHEN a.is_done = 0 THEN 1 ELSE 0 END) as not_attended_count FROM appointments a LEFT JOIN branch b ON a.branch_id = b.id WHERE " + where_sql + " GROUP BY b.id, b.name ORDER BY total_count DESC"
+    # Branch breakdown (deduplicated per patient per date)
+    branch_sql = f"""
+        SELECT 
+            COALESCE(b.id, 0) as branch_id,
+            COALESCE(b.name, 'Unassigned') as branch_name,
+            COUNT(*) as total_count,
+            SUM(CASE WHEN v.visit_done = 1 THEN 1 ELSE 0 END) as attended_count,
+            SUM(CASE WHEN v.visit_done = 0 THEN 1 ELSE 0 END) as not_attended_count
+        FROM (
+            SELECT 
+                a.patients_id,
+                a.date,
+                a.branch_id,
+                MAX(a.is_done) as visit_done
+            FROM appointments a
+            WHERE {where_sql}
+            GROUP BY a.patients_id, a.date, a.branch_id
+        ) v
+        LEFT JOIN branch b ON v.branch_id = b.id
+        GROUP BY b.id, b.name
+        ORDER BY total_count DESC
+    """
     cursor.execute(branch_sql, params)
     branches = []
     for r in cursor.fetchall():
@@ -2743,7 +2804,25 @@ def opd_analytics_api(request):
             'no_show_rate': round((b_not / b_tot * 100), 1) if b_tot > 0 else 0,
         })
 
-    daily_sql = "SELECT a.date, COUNT(*) as total_count, SUM(CASE WHEN a.is_done = 1 THEN 1 ELSE 0 END) as attended_count, SUM(CASE WHEN a.is_done = 0 THEN 1 ELSE 0 END) as not_attended_count FROM appointments a WHERE " + where_sql + " GROUP BY a.date ORDER BY a.date ASC"
+    # Daily trend (deduplicated per patient per date)
+    daily_sql = f"""
+        SELECT 
+            v.date,
+            COUNT(*) as total_count,
+            SUM(CASE WHEN v.visit_done = 1 THEN 1 ELSE 0 END) as attended_count,
+            SUM(CASE WHEN v.visit_done = 0 THEN 1 ELSE 0 END) as not_attended_count
+        FROM (
+            SELECT 
+                a.patients_id,
+                a.date,
+                MAX(a.is_done) as visit_done
+            FROM appointments a
+            WHERE {where_sql}
+            GROUP BY a.patients_id, a.date
+        ) v
+        GROUP BY v.date
+        ORDER BY v.date ASC
+    """
     cursor.execute(daily_sql, params)
     daily_trend = []
     for r in cursor.fetchall():
@@ -2764,7 +2843,29 @@ def opd_analytics_api(request):
         patient_params.extend([f'%{search_q}%', f'%{search_q}%', f'%{search_q}%', f'%{search_q}%'])
 
     patient_where_sql = ' AND '.join(patient_where)
-    patient_sql = "SELECT a.id, a.date, a.time, a.arrival_time, a.is_done, p.code, p.name, p.surname, p.mobile_number, c.name as category_name, b.name as branch_name FROM appointments a LEFT JOIN patients p ON a.patients_id = p.id LEFT JOIN category c ON CAST(a.category_id AS UNSIGNED) = c.id LEFT JOIN branch b ON a.branch_id = b.id WHERE " + patient_where_sql + " ORDER BY a.date DESC, a.time DESC, a.id DESC LIMIT 200"
+    # Deduplicate same patient same date in the patient list as well
+    patient_sql = f"""
+        SELECT 
+            MAX(a.id) as id,
+            a.date,
+            MAX(a.time) as time,
+            MAX(a.arrival_time) as arrival_time,
+            MAX(a.is_done) as is_done,
+            p.code,
+            p.name,
+            p.surname,
+            p.mobile_number,
+            MAX(c.name) as category_name,
+            MAX(b.name) as branch_name
+        FROM appointments a
+        LEFT JOIN patients p ON a.patients_id = p.id
+        LEFT JOIN category c ON CAST(a.category_id AS UNSIGNED) = c.id
+        LEFT JOIN branch b ON a.branch_id = b.id
+        WHERE {patient_where_sql}
+        GROUP BY a.patients_id, a.date, p.code, p.name, p.surname, p.mobile_number
+        ORDER BY a.date DESC, MAX(a.time) DESC, MAX(a.id) DESC
+        LIMIT 200
+    """
     cursor.execute(patient_sql, patient_params)
     patients_data = []
     for r in cursor.fetchall():
