@@ -435,7 +435,30 @@
 
         .search-box-wrap {
             position: relative;
-            width: 260px;
+            width: 220px;
+        }
+
+        .patient-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .patient-filter-select {
+            padding: 0.48rem 0.75rem;
+            border-radius: 8px;
+            border: 1px solid var(--slate-200);
+            background: var(--white);
+            font-size: 0.82rem;
+            color: var(--slate-800);
+            outline: none;
+            max-width: 170px;
+        }
+
+        .patient-filter-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
         }
 
         .search-box-wrap input {
@@ -648,9 +671,17 @@
                         <i class="fa-solid fa-users" style="color: var(--primary);"></i>
                         Patient Appointment Details
                     </h2>
-                    <div class="search-box-wrap">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="patientSearch" placeholder="Search Patient, MRN, Mobile..." onkeyup="handleSearch(event)">
+                    <div class="patient-filter-bar">
+                        <select id="patientCategoryFilter" class="patient-filter-select" onchange="loadOPDData()">
+                            <option value="">All Categories</option>
+                            {% for c in initial_categories %}
+                            <option value="{{ c.id }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="search-box-wrap">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="patientSearch" placeholder="Search Patient, MRN, Mobile..." onkeyup="handleSearch(event)">
+                        </div>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -733,7 +764,9 @@
             const startDate = document.getElementById("startDate").value;
             const endDate = document.getElementById("endDate").value;
             const branchId = document.getElementById("branchSelect").value;
-            const categoryId = document.getElementById("categorySelect").value;
+            const topCategoryId = document.getElementById("categorySelect").value;
+            const patientCategoryFilter = document.getElementById("patientCategoryFilter") ? document.getElementById("patientCategoryFilter").value : "";
+            const categoryId = patientCategoryFilter || topCategoryId;
             const status = document.getElementById("statusSelect").value;
             const search = document.getElementById("patientSearch").value.trim();
 
@@ -788,6 +821,7 @@
             if (!filters) return;
             const branchSelect = document.getElementById("branchSelect");
             const categorySelect = document.getElementById("categorySelect");
+            const patientCategoryFilter = document.getElementById("patientCategoryFilter");
 
             if (filters.branches && filters.branches.length > 0) {
                 const currentBranch = branchSelect.value;
@@ -805,7 +839,13 @@
 
             if (filters.categories && filters.categories.length > 0) {
                 const currentCategory = categorySelect.value;
+                const currentPatientCategory = patientCategoryFilter ? patientCategoryFilter.value : "";
+                
                 categorySelect.innerHTML = '<option value="">All Categories</option>';
+                if (patientCategoryFilter) {
+                    patientCategoryFilter.innerHTML = '<option value="">All Categories</option>';
+                }
+
                 filters.categories.forEach(c => {
                     const opt = document.createElement("option");
                     opt.value = c.id;
@@ -814,6 +854,16 @@
                         opt.selected = true;
                     }
                     categorySelect.appendChild(opt);
+
+                    if (patientCategoryFilter) {
+                        const opt2 = document.createElement("option");
+                        opt2.value = c.id;
+                        opt2.textContent = c.name;
+                        if (String(currentPatientCategory) === String(c.id)) {
+                            opt2.selected = true;
+                        }
+                        patientCategoryFilter.appendChild(opt2);
+                    }
                 });
             }
         }
