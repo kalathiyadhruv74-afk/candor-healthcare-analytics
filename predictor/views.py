@@ -1456,7 +1456,7 @@ def collection_analytics_api(request):
     # Net IPD Collection = SUM(Credit Deposits) - SUM(Debit Refunds)
     # Strictly exclude Medicare and Pediatric records.
     ipd_dep_where = [
-        "d.case_type = 'Credit'",
+        "d.is_deleted = 0",
         "d.charge_type = 4",
         "(d.is_medicare IS NULL OR d.is_medicare = 0)",
         "(d.is_pediatric IS NULL OR d.is_pediatric = 0)"
