@@ -511,12 +511,18 @@
                     <label>Branch</label>
                     <select id="branchSelect">
                         <option value="">All Branches</option>
+                        {% for b in initial_branches %}
+                        <option value="{{ b.id }}">{{ b.name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="filter-field">
                     <label>Category (Table: Category)</label>
                     <select id="categorySelect">
                         <option value="">All Categories</option>
+                        {% for c in initial_categories %}
+                        <option value="{{ c.id }}">{{ c.name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="filter-field">
@@ -777,20 +783,30 @@
             const branchSelect = document.getElementById("branchSelect");
             const categorySelect = document.getElementById("categorySelect");
 
-            if (branchSelect.options.length <= 1 && filters.branches) {
+            if (filters.branches && filters.branches.length > 0) {
+                const currentBranch = branchSelect.value;
+                branchSelect.innerHTML = '<option value="">All Branches</option>';
                 filters.branches.forEach(b => {
                     const opt = document.createElement("option");
                     opt.value = b.id;
                     opt.textContent = b.name;
+                    if (String(currentBranch) === String(b.id)) {
+                        opt.selected = true;
+                    }
                     branchSelect.appendChild(opt);
                 });
             }
 
-            if (categorySelect.options.length <= 1 && filters.categories) {
+            if (filters.categories && filters.categories.length > 0) {
+                const currentCategory = categorySelect.value;
+                categorySelect.innerHTML = '<option value="">All Categories</option>';
                 filters.categories.forEach(c => {
                     const opt = document.createElement("option");
                     opt.value = c.id;
                     opt.textContent = c.name;
+                    if (String(currentCategory) === String(c.id)) {
+                        opt.selected = true;
+                    }
                     categorySelect.appendChild(opt);
                 });
             }
