@@ -3,14 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OPD Report | Candor Healthcare</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>OPD Appointments & Patient Inflow Report | Candor Healthcare</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         :root {
+            --bg-page: #F8FAFC;
+            --bg-card: #FFFFFF;
+            --bg-card-subtle: #F1F5F9;
             --primary: #0284C7;
             --primary-dark: #0369A1;
             --primary-light: #E0F2FE;
+            --emerald: #059669;
+            --emerald-bg: #ECFDF5;
+            --rose: #E11D48;
+            --rose-bg: #FFE4E6;
+            --amber: #D97706;
+            --amber-bg: #FEF3C7;
+            --purple: #7C3AED;
+            --purple-bg: #F5F3FF;
             --slate-900: #0F172A;
             --slate-800: #1E293B;
             --slate-700: #334155;
@@ -19,8 +34,10 @@
             --slate-400: #94A3B8;
             --slate-200: #E2E8F0;
             --slate-100: #F1F5F9;
-            --slate-50: #F8FAFC;
             --white: #FFFFFF;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
         }
 
         * {
@@ -31,7 +48,7 @@
         }
 
         body {
-            background-color: #F8FAFC;
+            background-color: var(--bg-page);
             color: var(--slate-800);
             min-height: 100vh;
         }
@@ -46,11 +63,13 @@
         }
 
         .header-content {
-            max-width: 1600px;
+            max-width: 1650px;
             margin: 0 auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
         }
 
         .logo-area {
@@ -62,8 +81,8 @@
         .logo-icon {
             background: linear-gradient(135deg, #0284C7, #0369A1);
             color: white;
-            width: 40px;
-            height: 40px;
+            width: 42px;
+            height: 42px;
             border-radius: 10px;
             display: flex;
             align-items: center;
@@ -79,14 +98,14 @@
         }
 
         .logo-text p {
-            font-size: 0.75rem;
+            font-size: 0.78rem;
             color: var(--slate-500);
-            font-weight: 600;
+            font-weight: 500;
         }
 
         .nav-links {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.4rem;
             background: var(--slate-100);
             padding: 0.35rem;
             border-radius: 12px;
@@ -94,9 +113,9 @@
         }
 
         .nav-tab {
-            padding: 0.6rem 1rem;
+            padding: 0.55rem 0.95rem;
             border-radius: 8px;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             font-weight: 600;
             text-decoration: none;
             color: var(--slate-600);
@@ -116,47 +135,338 @@
         }
 
         .main-container {
-            max-width: 1600px;
-            margin: 2rem auto;
-            padding: 0 2rem;
+            max-width: 1650px;
+            margin: 1.5rem auto;
+            padding: 0 1.5rem 3rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
         }
 
-        .placeholder-card {
+        /* Filter Toolbar */
+        .filter-panel {
             background: var(--white);
             border: 1px solid var(--slate-200);
-            border-radius: 16px;
-            padding: 4rem 2rem;
-            text-align: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            margin-top: 1.5rem;
+            border-radius: var(--radius-lg);
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 1rem;
         }
 
-        .placeholder-icon {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: var(--primary-light);
-            color: var(--primary);
+        .filter-group-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: flex-end;
+        }
+
+        .filter-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .filter-field label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--slate-600);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .filter-field select, .filter-field input {
+            padding: 0.55rem 0.85rem;
+            border-radius: 8px;
+            border: 1px solid var(--slate-200);
+            background: var(--white);
+            font-size: 0.85rem;
+            color: var(--slate-800);
+            outline: none;
+            min-width: 140px;
+            transition: border-color 0.2s;
+        }
+
+        .filter-field select:focus, .filter-field input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .btn-apply {
+            padding: 0.55rem 1.25rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: background 0.2s;
+        }
+
+        .btn-apply:hover {
+            background: var(--primary-dark);
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border: 1px solid var(--slate-200);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+        }
+
+        .kpi-card.blue::after { background: var(--primary); }
+        .kpi-card.green::after { background: var(--emerald); }
+        .kpi-card.rose::after { background: var(--rose); }
+        .kpi-card.purple::after { background: var(--purple); }
+
+        .kpi-info h3 {
+            font-size: 0.82rem;
+            color: var(--slate-500);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.4rem;
+        }
+
+        .kpi-info .kpi-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--slate-900);
+            line-height: 1;
+        }
+
+        .kpi-info .kpi-sub {
+            margin-top: 0.45rem;
+            font-size: 0.78rem;
+            color: var(--slate-500);
+        }
+
+        .kpi-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.25rem;
-            margin: 0 auto 1.5rem;
+            font-size: 1.4rem;
         }
 
-        .placeholder-title {
-            font-size: 1.75rem;
-            font-weight: 800;
+        .kpi-card.blue .kpi-icon { background: var(--primary-light); color: var(--primary); }
+        .kpi-card.green .kpi-icon { background: var(--emerald-bg); color: var(--emerald); }
+        .kpi-card.rose .kpi-icon { background: var(--rose-bg); color: var(--rose); }
+        .kpi-card.purple .kpi-icon { background: var(--purple-bg); color: var(--purple); }
+
+        /* Charts & Tables Section */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1100px) {
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section-card {
+            background: var(--white);
+            border: 1px solid var(--slate-200);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--slate-200);
+        }
+
+        .section-header h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
             color: var(--slate-900);
-            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
-        .placeholder-desc {
-            font-size: 1rem;
-            color: var(--slate-500);
-            max-width: 520px;
-            margin: 0 auto;
-            line-height: 1.6;
+        .badge-pill {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-weight: 600;
+            background: var(--slate-100);
+            color: var(--slate-600);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 320px;
+            width: 100%;
+        }
+
+        /* Tables */
+        .table-responsive {
+            overflow-x: auto;
+            max-height: 480px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+
+        th {
+            background: #F8FAFC;
+            color: var(--slate-600);
+            font-weight: 700;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid var(--slate-200);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--slate-200);
+            color: var(--slate-700);
+            white-space: nowrap;
+        }
+
+        tr:hover td {
+            background: #F8FAFC;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .status-badge.attended {
+            background: var(--emerald-bg);
+            color: var(--emerald);
+        }
+
+        .status-badge.not-attended {
+            background: var(--rose-bg);
+            color: var(--rose);
+        }
+
+        .category-tag {
+            display: inline-block;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            font-weight: 700;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 6px;
+        }
+
+        .progress-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .progress-bar-bg {
+            flex-grow: 1;
+            height: 6px;
+            background: var(--slate-100);
+            border-radius: 4px;
+            overflow: hidden;
+            min-width: 60px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        .progress-bar-fill.danger {
+            background: var(--rose);
+        }
+
+        .search-box-wrap {
+            position: relative;
+            width: 260px;
+        }
+
+        .search-box-wrap input {
+            width: 100%;
+            padding: 0.5rem 0.85rem 0.5rem 2.2rem;
+            border-radius: 8px;
+            border: 1px solid var(--slate-200);
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .search-box-wrap i {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--slate-400);
+            font-size: 0.85rem;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 20;
+            justify-content: center;
+            align-items: center;
+            font-weight: 600;
+            color: var(--primary);
+            border-radius: var(--radius-lg);
         }
     </style>
 </head>
@@ -165,34 +475,492 @@
         <div class="header-content">
             <div class="logo-area">
                 <div class="logo-icon">
-                    <i class="fa-solid fa-stethoscope"></i>
+                    <i class="fa-solid fa-notes-medical"></i>
                 </div>
                 <div class="logo-text">
                     <h1>Candor Healthcare</h1>
-                    <p>Clinical Analytics Platform</p>
+                    <p>Clinical OPD &amp; Appointment Analytics</p>
                 </div>
             </div>
             <nav class="nav-links">
-                <a href="/iui/" class="nav-tab inactive">IUI Plan Predictor</a>
-                <a href="/ivf/" class="nav-tab inactive">IVF Plan Predictor</a>
-                <a href="/anc-journey/" class="nav-tab inactive">ANC &amp; Delivery Journey</a>
-                <a href="/opd-prediction/" class="nav-tab inactive">OPD Prediction &amp; Targets</a>
+                <a href="/iui/" class="nav-tab">IUI Plan Predictor</a>
+                <a href="/ivf/" class="nav-tab">IVF Plan Predictor</a>
+                <a href="/anc-journey/" class="nav-tab">ANC &amp; Delivery Journey</a>
+                <a href="/opd-prediction/" class="nav-tab">OPD Prediction &amp; Targets</a>
                 <a href="/opd-report/" class="nav-tab active">OPD Report</a>
-                <a href="/ivf-booking/" class="nav-tab inactive">IVF Booking Report</a>
-                <a href="/pharmacy-report/" class="nav-tab inactive">Pharmacy Report</a>
-                <a href="/collection-report/" class="nav-tab inactive">Collection Report</a>
+                <a href="/ivf-booking/" class="nav-tab">IVF Booking Report</a>
+                <a href="/pharmacy-report/" class="nav-tab">Pharmacy Report</a>
+                <a href="/collection-report/" class="nav-tab">Collection Report</a>
             </nav>
         </div>
     </header>
 
     <main class="main-container">
-        <div class="placeholder-card">
-            <div class="placeholder-icon">
-                <i class="fa-solid fa-notes-medical"></i>
+        <!-- Live Filter Bar -->
+        <div class="filter-panel">
+            <div class="filter-group-wrap">
+                <div class="filter-field">
+                    <label>Start Date</label>
+                    <input type="date" id="startDate" value="2026-08-01">
+                </div>
+                <div class="filter-field">
+                    <label>End Date</label>
+                    <input type="date" id="endDate" value="2026-08-31">
+                </div>
+                <div class="filter-field">
+                    <label>Branch</label>
+                    <select id="branchSelect">
+                        <option value="">All Branches</option>
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label>Category (Table: Category)</label>
+                    <select id="categorySelect">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label>Attendance Status</label>
+                    <select id="statusSelect">
+                        <option value="">All Status (Attended + Not Attended)</option>
+                        <option value="attended">Attended OPD (is_done = 1)</option>
+                        <option value="not_attended">Not Attended / No-Show (is_done = 0)</option>
+                    </select>
+                </div>
             </div>
-            <h2 class="placeholder-title">OPD Report</h2>
-            <p class="placeholder-desc">This tab is ready. Please tell what data, filters, and reports you want to display here.</p>
+            <div>
+                <button class="btn-apply" onclick="loadOPDData()">
+                    <i class="fa-solid fa-arrows-rotate"></i> Update Report
+                </button>
+            </div>
+        </div>
+
+        <!-- 4 Key Operational Metrics Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card blue">
+                <div class="kpi-info">
+                    <h3>Total Appointments (આવેલ એપોઇન્ટમેન્ટ)</h3>
+                    <div class="kpi-value" id="kpiTotalAppts">-</div>
+                    <div class="kpi-sub">Total booked across selected dates</div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-calendar-check"></i>
+                </div>
+            </div>
+
+            <div class="kpi-card green">
+                <div class="kpi-info">
+                    <h3>Attended OPD (થયેલી OPD)</h3>
+                    <div class="kpi-value" id="kpiAttendedOpd">-</div>
+                    <div class="kpi-sub"><span id="kpiAttendanceRate">0%</span> Attendance Ratio (is_done = 1)</div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-user-check"></i>
+                </div>
+            </div>
+
+            <div class="kpi-card rose">
+                <div class="kpi-info">
+                    <h3>Not Attended (નથી આવેલા દર્દી)</h3>
+                    <div class="kpi-value" id="kpiNotAttended">-</div>
+                    <div class="kpi-sub"><span id="kpiNoShowRate">0%</span> No-Show / Dropout Ratio</div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-user-xmark"></i>
+                </div>
+            </div>
+
+            <div class="kpi-card purple">
+                <div class="kpi-info">
+                    <h3>Clinical Inflow Mix</h3>
+                    <div class="kpi-value" id="kpiTopCategory">-</div>
+                    <div class="kpi-sub">Highest Patient Category volume</div>
+                </div>
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-hospital-user"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visual Charts & Category Breakdown -->
+        <div class="analytics-grid">
+            <div class="section-card">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-chart-column" style="color: var(--primary);"></i> Daily Appointments &amp; Attended OPD Trend</h2>
+                    <span class="badge-pill">Daily Timeline</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-chart-pie" style="color: var(--purple);"></i> Attendance vs Dropout</h2>
+                    <span class="badge-pill">Overview</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="attendancePieChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Wise Report Table -->
+        <div class="section-card">
+            <div class="section-header">
+                <h2>
+                    <i class="fa-solid fa-layer-group" style="color: var(--primary);"></i>
+                    Patient Category Wise OPD Report (category ટેબલ અનુસાર)
+                </h2>
+                <span class="badge-pill" id="catCountPill">0 Categories</span>
+            </div>
+            <div class="table-responsive">
+                <table id="categoryTable">
+                    <thead>
+                        <tr>
+                            <th>Category ID</th>
+                            <th>Category Name (કઈ કેટેગરી નું પેશન્ટ છે)</th>
+                            <th>Total Appointments</th>
+                            <th>Attended OPD (થયેલી OPD)</th>
+                            <th>Not Attended (નથી આવ્યા)</th>
+                            <th>Attendance Rate</th>
+                            <th>No-Show Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categoryTableBody">
+                        <tr><td colspan="7" style="text-align: center; padding: 2rem;">Loading category data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Branch Breakdown & Patient Details -->
+        <div class="analytics-grid">
+            <div class="section-card">
+                <div class="section-header">
+                    <h2>
+                        <i class="fa-solid fa-users" style="color: var(--primary);"></i>
+                        Patient Appointment Details
+                    </h2>
+                    <div class="search-box-wrap">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="patientSearch" placeholder="Search Patient, MRN, Mobile..." onkeyup="handleSearch(event)">
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="patientTable">
+                        <thead>
+                            <tr>
+                                <th>Date &amp; Time</th>
+                                <th>MRN Code</th>
+                                <th>Patient Name</th>
+                                <th>Category</th>
+                                <th>Branch</th>
+                                <th>Arrival Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patientTableBody">
+                            <tr><td colspan="7" style="text-align: center; padding: 2rem;">Loading patient list...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-code-branch" style="color: var(--primary);"></i> Branch Breakdown</h2>
+                    <span class="badge-pill" id="branchCountPill">0 Branches</span>
+                </div>
+                <div class="table-responsive">
+                    <table id="branchTable">
+                        <thead>
+                            <tr>
+                                <th>Branch</th>
+                                <th>Total</th>
+                                <th>Attended</th>
+                                <th>No-Show %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="branchTableBody">
+                            <tr><td colspan="4" style="text-align: center; padding: 2rem;">Loading branch data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </main>
+
+    <script>
+        let trendChartInstance = null;
+        let pieChartInstance = null;
+        let searchTimeout = null;
+
+        document.addEventListener("DOMContentLoaded", function() {
+            loadOPDData();
+        });
+
+        function handleSearch(e) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                loadOPDData();
+            }, 400);
+        }
+
+        async function loadOPDData() {
+            const startDate = document.getElementById("startDate").value;
+            const endDate = document.getElementById("endDate").value;
+            const branchId = document.getElementById("branchSelect").value;
+            const categoryId = document.getElementById("categorySelect").value;
+            const status = document.getElementById("statusSelect").value;
+            const search = document.getElementById("patientSearch").value.trim();
+
+            const params = new URLSearchParams({
+                start_date: startDate,
+                end_date: endDate,
+                branch_id: branchId,
+                category_id: categoryId,
+                status: status,
+                search: search
+            });
+
+            try {
+                const response = await fetch(`/api/opd-analytics/?${params.toString()}`);
+                const data = await response.json();
+
+                if (data.status === "success") {
+                    updateKPIs(data.summary, data.categories);
+                    populateFilters(data.filters);
+                    renderCategoryTable(data.categories);
+                    renderBranchTable(data.branches);
+                    renderPatientTable(data.patients);
+                    renderTrendChart(data.daily_trend);
+                    renderPieChart(data.summary);
+                } else {
+                    alert("Error loading OPD report: " + (data.message || "Unknown error"));
+                }
+            } catch (err) {
+                console.error("Failed to fetch OPD analytics:", err);
+            }
+        }
+
+        function updateKPIs(summary, categories) {
+            document.getElementById("kpiTotalAppts").innerText = (summary.total_appointments || 0).toLocaleString();
+            document.getElementById("kpiAttendedOpd").innerText = (summary.attended_opd || 0).toLocaleString();
+            document.getElementById("kpiAttendanceRate").innerText = (summary.attendance_rate || 0) + "%";
+            document.getElementById("kpiNotAttended").innerText = (summary.not_attended || 0).toLocaleString();
+            document.getElementById("kpiNoShowRate").innerText = (summary.no_show_rate || 0) + "%";
+
+            if (categories && categories.length > 0) {
+                document.getElementById("kpiTopCategory").innerText = categories[0].category_name;
+            } else {
+                document.getElementById("kpiTopCategory").innerText = "-";
+            }
+        }
+
+        function populateFilters(filters) {
+            if (!filters) return;
+            const branchSelect = document.getElementById("branchSelect");
+            const categorySelect = document.getElementById("categorySelect");
+
+            if (branchSelect.options.length <= 1 && filters.branches) {
+                filters.branches.forEach(b => {
+                    const opt = document.createElement("option");
+                    opt.value = b.id;
+                    opt.textContent = b.name;
+                    branchSelect.appendChild(opt);
+                });
+            }
+
+            if (categorySelect.options.length <= 1 && filters.categories) {
+                filters.categories.forEach(c => {
+                    const opt = document.createElement("option");
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    categorySelect.appendChild(opt);
+                });
+            }
+        }
+
+        function renderCategoryTable(categories) {
+            const tbody = document.getElementById("categoryTableBody");
+            document.getElementById("catCountPill").innerText = `${categories.length} Categories`;
+
+            if (!categories || categories.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem;">No category data found for this period.</td></tr>`;
+                return;
+            }
+
+            let html = "";
+            categories.forEach(c => {
+                html += `
+                    <tr>
+                        <td><strong>#${c.category_id}</strong></td>
+                        <td><span class="category-tag">${c.category_name}</span></td>
+                        <td><strong>${c.total_appointments.toLocaleString()}</strong></td>
+                        <td style="color: var(--emerald); font-weight: 700;">${c.attended.toLocaleString()}</td>
+                        <td style="color: var(--rose); font-weight: 700;">${c.not_attended.toLocaleString()}</td>
+                        <td>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar-bg">
+                                    <div class="progress-bar-fill" style="width: ${c.attendance_rate}%;"></div>
+                                </div>
+                                <span style="font-weight: 700; font-size: 0.8rem;">${c.attendance_rate}%</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar-bg">
+                                    <div class="progress-bar-fill danger" style="width: ${c.no_show_rate}%;"></div>
+                                </div>
+                                <span style="font-weight: 700; font-size: 0.8rem; color: var(--rose);">${c.no_show_rate}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function renderBranchTable(branches) {
+            const tbody = document.getElementById("branchTableBody");
+            document.getElementById("branchCountPill").innerText = `${branches.length} Branches`;
+
+            if (!branches || branches.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem;">No branch data found.</td></tr>`;
+                return;
+            }
+
+            let html = "";
+            branches.forEach(b => {
+                html += `
+                    <tr>
+                        <td><strong>${b.branch_name}</strong></td>
+                        <td>${b.total_appointments.toLocaleString()}</td>
+                        <td style="color: var(--emerald); font-weight: 600;">${b.attended.toLocaleString()}</td>
+                        <td style="color: ${b.no_show_rate > 20 ? 'var(--rose)' : 'var(--slate-600)'}; font-weight: 700;">
+                            ${b.no_show_rate}%
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function renderPatientTable(patients) {
+            const tbody = document.getElementById("patientTableBody");
+            if (!patients || patients.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem;">No matching appointments found.</td></tr>`;
+                return;
+            }
+
+            let html = "";
+            patients.forEach(p => {
+                const statusBadge = p.is_done === 1 
+                    ? `<span class="status-badge attended"><i class="fa-solid fa-check"></i> Attended OPD</span>`
+                    : `<span class="status-badge not-attended"><i class="fa-solid fa-xmark"></i> Not Attended</span>`;
+
+                html += `
+                    <tr>
+                        <td><strong>${p.date}</strong> <span style="color: var(--slate-400); font-size: 0.75rem;">${p.time}</span></td>
+                        <td><code style="font-family: 'JetBrains Mono'; background: var(--slate-100); padding: 2px 6px; border-radius: 4px;">${p.code}</code></td>
+                        <td><strong>${p.patient_name}</strong><br><span style="color: var(--slate-400); font-size: 0.75rem;">${p.mobile}</span></td>
+                        <td><span class="category-tag">${p.category}</span></td>
+                        <td>${p.branch}</td>
+                        <td>${p.arrival_time !== '-' ? `<span style="font-weight: 600; color: var(--emerald);">${p.arrival_time}</span>` : '<span style="color: var(--slate-400);">-</span>'}</td>
+                        <td>${statusBadge}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function renderTrendChart(trend) {
+            const ctx = document.getElementById("trendChart").getContext("2d");
+            if (trendChartInstance) {
+                trendChartInstance.destroy();
+            }
+
+            const labels = trend.map(t => t.date.slice(5)); // MM-DD
+            const totalData = trend.map(t => t.total_appointments);
+            const attendedData = trend.map(t => t.attended);
+            const notAttendedData = trend.map(t => t.not_attended);
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Total Appointments',
+                            data: totalData,
+                            borderColor: '#0284C7',
+                            backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Attended OPD (Done)',
+                            data: attendedData,
+                            borderColor: '#059669',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Not Attended',
+                            data: notAttendedData,
+                            borderColor: '#E11D48',
+                            backgroundColor: 'rgba(225, 29, 72, 0.05)',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            tension: 0.3,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function renderPieChart(summary) {
+            const ctx = document.getElementById("attendancePieChart").getContext("2d");
+            if (pieChartInstance) {
+                pieChartInstance.destroy();
+            }
+
+            pieChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Attended OPD', 'Not Attended (No-Show)'],
+                    datasets: [{
+                        data: [summary.attended_opd || 0, summary.not_attended || 0],
+                        backgroundColor: ['#059669', '#E11D48'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+    </script>
 </body>
 </html>

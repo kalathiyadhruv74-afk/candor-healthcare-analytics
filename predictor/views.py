@@ -2623,3 +2623,163 @@ def history_api(request):
     logs = list(PredictionLog.objects.all().order_by("-created_at")[:50].values())
     return JsonResponse({"status": "success", "history": logs})
 
+
+
+def opd_analytics_api(request):
+    """
+    Live OPD Report Analytics API:
+    - Total Appointments booked
+    - Attended OPD (is_done = 1)
+    - Not Attended / No-Show (is_done = 0)
+    - Category breakdown (from category table)
+    - Branch breakdown
+    - Daily trend
+    - Patient-level list with status, category, branch, arrival time
+    """
+    from django.db import connection
+    start_date = request.GET.get('start_date', '').strip()
+    end_date = request.GET.get('end_date', '').strip()
+    branch_id = request.GET.get('branch_id', '').strip()
+    category_id = request.GET.get('category_id', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    search_q = request.GET.get('search', '').strip()
+
+    where_clauses = ['a.deleted_at IS NULL']
+    params = []
+
+    if start_date:
+        where_clauses.append('a.date >= %s')
+        params.append(start_date)
+    else:
+        where_clauses.append('a.date >= %s')
+        params.append('2026-08-01')
+
+    if end_date:
+        where_clauses.append('a.date <= %s')
+        params.append(end_date)
+    else:
+        where_clauses.append('a.date <= %s')
+        params.append('2026-08-31')
+
+    if branch_id:
+        where_clauses.append('a.branch_id = %s')
+        params.append(branch_id)
+
+    if category_id:
+        where_clauses.append('a.category_id = %s')
+        params.append(category_id)
+
+    if status_filter == 'attended':
+        where_clauses.append('a.is_done = 1')
+    elif status_filter == 'not_attended':
+        where_clauses.append('a.is_done = 0')
+
+    where_sql = ' AND '.join(where_clauses)
+    cursor = connection.cursor()
+
+    summary_sql = "SELECT COUNT(*) as total_appointments, SUM(CASE WHEN a.is_done = 1 THEN 1 ELSE 0 END) as attended_count, SUM(CASE WHEN a.is_done = 0 THEN 1 ELSE 0 END) as not_attended_count FROM appointments a WHERE " + where_sql
+    cursor.execute(summary_sql, params)
+    s_row = cursor.fetchone()
+    total_appts = int(s_row[0] or 0)
+    attended_count = int(s_row[1] or 0)
+    not_attended_count = int(s_row[2] or 0)
+    attendance_rate = round((attended_count / total_appts * 100), 1) if total_appts > 0 else 0
+    no_show_rate = round((not_attended_count / total_appts * 100), 1) if total_appts > 0 else 0
+
+    cat_sql = "SELECT COALESCE(c.id, 0) as category_id, COALESCE(c.name, 'Unassigned') as category_name, COUNT(*) as total_count, SUM(CASE WHEN a.is_done = 1 THEN 1 ELSE 0 END) as attended_count, SUM(CASE WHEN a.is_done = 0 THEN 1 ELSE 0 END) as not_attended_count FROM appointments a LEFT JOIN category c ON CAST(a.category_id AS UNSIGNED) = c.id WHERE " + where_sql + " GROUP BY c.id, c.name ORDER BY total_count DESC"
+    cursor.execute(cat_sql, params)
+    categories = []
+    for r in cursor.fetchall():
+        c_tot = int(r[2] or 0)
+        c_att = int(r[3] or 0)
+        c_not = int(r[4] or 0)
+        categories.append({
+            'category_id': r[0],
+            'category_name': r[1],
+            'total_appointments': c_tot,
+            'attended': c_att,
+            'not_attended': c_not,
+            'attendance_rate': round((c_att / c_tot * 100), 1) if c_tot > 0 else 0,
+            'no_show_rate': round((c_not / c_tot * 100), 1) if c_tot > 0 else 0,
+        })
+
+    branch_sql = "SELECT COALESCE(b.id, 0) as branch_id, COALESCE(b.name, 'Unassigned') as branch_name, COUNT(*) as total_count, SUM(CASE WHEN a.is_done = 1 THEN 1 ELSE 0 END) as attended_count, SUM(CASE WHEN a.is_done = 0 THEN 1 ELSE 0 END) as not_attended_count FROM appointments a LEFT JOIN branch b ON a.branch_id = b.id WHERE " + where_sql + " GROUP BY b.id, b.name ORDER BY total_count DESC"
+    cursor.execute(branch_sql, params)
+    branches = []
+    for r in cursor.fetchall():
+        b_tot = int(r[2] or 0)
+        b_att = int(r[3] or 0)
+        b_not = int(r[4] or 0)
+        branches.append({
+            'branch_id': r[0],
+            'branch_name': r[1],
+            'total_appointments': b_tot,
+            'attended': b_att,
+            'not_attended': b_not,
+            'attendance_rate': round((b_att / b_tot * 100), 1) if b_tot > 0 else 0,
+            'no_show_rate': round((b_not / b_tot * 100), 1) if b_tot > 0 else 0,
+        })
+
+    daily_sql = "SELECT a.date, COUNT(*) as total_count, SUM(CASE WHEN a.is_done = 1 THEN 1 ELSE 0 END) as attended_count, SUM(CASE WHEN a.is_done = 0 THEN 1 ELSE 0 END) as not_attended_count FROM appointments a WHERE " + where_sql + " GROUP BY a.date ORDER BY a.date ASC"
+    cursor.execute(daily_sql, params)
+    daily_trend = []
+    for r in cursor.fetchall():
+        d_tot = int(r[1] or 0)
+        d_att = int(r[2] or 0)
+        d_not = int(r[3] or 0)
+        daily_trend.append({
+            'date': str(r[0]),
+            'total_appointments': d_tot,
+            'attended': d_att,
+            'not_attended': d_not
+        })
+
+    patient_where = list(where_clauses)
+    patient_params = list(params)
+    if search_q:
+        patient_where.append("(p.name LIKE %s OR p.surname LIKE %s OR p.code LIKE %s OR p.mobile_number LIKE %s)")
+        patient_params.extend([f'%{search_q}%', f'%{search_q}%', f'%{search_q}%', f'%{search_q}%'])
+
+    patient_where_sql = ' AND '.join(patient_where)
+    patient_sql = "SELECT a.id, a.date, a.time, a.arrival_time, a.is_done, p.code, p.name, p.surname, p.mobile_number, c.name as category_name, b.name as branch_name FROM appointments a LEFT JOIN patients p ON a.patients_id = p.id LEFT JOIN category c ON CAST(a.category_id AS UNSIGNED) = c.id LEFT JOIN branch b ON a.branch_id = b.id WHERE " + patient_where_sql + " ORDER BY a.date DESC, a.time DESC, a.id DESC LIMIT 200"
+    cursor.execute(patient_sql, patient_params)
+    patients_data = []
+    for r in cursor.fetchall():
+        full_name = f"{r[6] or ''} {r[7] or ''}".strip() or 'Unknown Patient'
+        patients_data.append({
+            'appointment_id': r[0],
+            'date': str(r[1]) if r[1] else '',
+            'time': str(r[2]) if r[2] else '-',
+            'arrival_time': str(r[3]) if r[3] else '-',
+            'status': 'Attended' if r[4] == 1 else 'Not Attended',
+            'is_done': r[4],
+            'code': r[5] or '-',
+            'patient_name': full_name,
+            'mobile': r[8] or '-',
+            'category': r[9] or 'Unassigned',
+            'branch': r[10] or 'Main Branch'
+        })
+
+    cursor.execute('SELECT id, name FROM branch WHERE status = 1 ORDER BY name')
+    branch_options = [{'id': r[0], 'name': r[1]} for r in cursor.fetchall()]
+    cursor.execute('SELECT id, name FROM category WHERE status = 1 ORDER BY name')
+    category_options = [{'id': r[0], 'name': r[1]} for r in cursor.fetchall()]
+
+    return JsonResponse({
+        'status': 'success',
+        'summary': {
+            'total_appointments': total_appts,
+            'attended_opd': attended_count,
+            'not_attended': not_attended_count,
+            'attendance_rate': attendance_rate,
+            'no_show_rate': no_show_rate
+        },
+        'categories': categories,
+        'branches': branches,
+        'daily_trend': daily_trend,
+        'patients': patients_data,
+        'filters': {
+            'branches': branch_options,
+            'categories': category_options
+        }
+    })
