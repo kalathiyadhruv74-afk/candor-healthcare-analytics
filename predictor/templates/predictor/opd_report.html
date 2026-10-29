@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OPD Report | Candor Healthcare</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #0284C7;
+            --primary-dark: #0369A1;
+            --primary-light: #E0F2FE;
+            --slate-900: #0F172A;
+            --slate-800: #1E293B;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-500: #64748B;
+            --slate-400: #94A3B8;
+            --slate-200: #E2E8F0;
+            --slate-100: #F1F5F9;
+            --slate-50: #F8FAFC;
+            --white: #FFFFFF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background-color: #F8FAFC;
+            color: var(--slate-800);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--white);
+            border-bottom: 1px solid var(--slate-200);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            background: linear-gradient(135deg, #0284C7, #0369A1);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .logo-text h1 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--slate-900);
+            line-height: 1.2;
+        }
+
+        .logo-text p {
+            font-size: 0.75rem;
+            color: var(--slate-500);
+            font-weight: 600;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 0.5rem;
+            background: var(--slate-100);
+            padding: 0.35rem;
+            border-radius: 12px;
+            overflow-x: auto;
+        }
+
+        .nav-tab {
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+            color: var(--slate-600);
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            color: var(--slate-900);
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        .nav-tab.active {
+            background: var(--white);
+            color: var(--primary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .main-container {
+            max-width: 1600px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .placeholder-card {
+            background: var(--white);
+            border: 1px solid var(--slate-200);
+            border-radius: 16px;
+            padding: 4rem 2rem;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-top: 1.5rem;
+        }
+
+        .placeholder-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--primary-light);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.25rem;
+            margin: 0 auto 1.5rem;
+        }
+
+        .placeholder-title {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--slate-900);
+            margin-bottom: 0.75rem;
+        }
+
+        .placeholder-desc {
+            font-size: 1rem;
+            color: var(--slate-500);
+            max-width: 520px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-stethoscope"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>Candor Healthcare</h1>
+                    <p>Clinical Analytics Platform</p>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="/iui/" class="nav-tab inactive">IUI Plan Predictor</a>
+                <a href="/ivf/" class="nav-tab inactive">IVF Plan Predictor</a>
+                <a href="/anc-journey/" class="nav-tab inactive">ANC &amp; Delivery Journey</a>
+                <a href="/opd-prediction/" class="nav-tab inactive">OPD Prediction &amp; Targets</a>
+                <a href="/opd-report/" class="nav-tab active">OPD Report</a>
+                <a href="/ivf-booking/" class="nav-tab inactive">IVF Booking Report</a>
+                <a href="/pharmacy-report/" class="nav-tab inactive">Pharmacy Report</a>
+                <a href="/collection-report/" class="nav-tab inactive">Collection Report</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div class="placeholder-card">
+            <div class="placeholder-icon">
+                <i class="fa-solid fa-notes-medical"></i>
+            </div>
+            <h2 class="placeholder-title">OPD Report</h2>
+            <p class="placeholder-desc">This tab is ready. Please tell what data, filters, and reports you want to display here.</p>
+        </div>
+    </main>
+</body>
+</html>

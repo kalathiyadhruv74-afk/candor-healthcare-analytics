@@ -24,6 +24,9 @@ def anc_journey_page(request):
 def opd_prediction_page(request):
     return render(request, "predictor/opd_prediction.html")
 
+def opd_report_page(request):
+    return render(request, "predictor/opd_report.html")
+
 def ivf_booking_report_page(request):
     return render(request, "predictor/ivf_booking_report.html")
 

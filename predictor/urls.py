@@ -7,6 +7,7 @@ urlpatterns = [
     path("ivf/", views.ivf_page, name="ivf_page"),
     path("anc-journey/", views.anc_journey_page, name="anc_journey_page"),
     path("opd-prediction/", views.opd_prediction_page, name="opd_prediction_page"),
+    path("opd-report/", views.opd_report_page, name="opd_report_page"),
     path("api/opd-prediction/", views.opd_prediction_api, name="opd_prediction_api"),
     path("api/opd-prediction/sync-live/", views.sync_live_opd_api, name="sync_live_opd_api"),
     path("api/anc-analytics/", views.anc_analytics_api, name="anc_analytics_api"),
