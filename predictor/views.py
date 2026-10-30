@@ -2692,204 +2692,234 @@ def opd_analytics_api(request):
     # Exclude IVF donors (when category is IVF and patient is_donor = 1)
     where_clauses.append('NOT (CAST(a.category_id AS UNSIGNED) IN (1, 2, 11, 14, 50) AND COALESCE(p.is_donor, 0) = 1)')
 
-    where_sql = ' AND '.join(where_clauses)
     cursor = connection.cursor()
 
-    # Deduplicate same-day visits (Option B: 1 visit per patient per day)
-    summary_sql = f"""
+    # 1. Fetch metadata in parallel / fast queries (<0.1s each)
+    cursor.execute('SELECT id, name FROM branch WHERE status = 1 ORDER BY name')
+    branch_dict = {r[0]: r[1] for r in cursor.fetchall()}
+    branch_options = [{'id': bid, 'name': bname} for bid, bname in branch_dict.items()]
+
+    cursor.execute('SELECT id, name FROM category WHERE status = 1 ORDER BY name')
+    cat_dict = {r[0]: r[1] for r in cursor.fetchall()}
+    category_options = [{'id': cid, 'name': cname} for cid, cname in cat_dict.items()]
+
+    cursor.execute('SELECT id FROM patients WHERE is_donor = 1')
+    donor_pids = set(r[0] for r in cursor.fetchall())
+
+    # 2. Build indexed appointments query (without expensive JOINs or temp tables on DB)
+    appt_where = ['a.deleted_at IS NULL']
+    appt_params = []
+    if start_date:
+        appt_where.append('a.date >= %s')
+        appt_params.append(start_date)
+    if end_date:
+        appt_where.append('a.date <= %s')
+        appt_params.append(end_date)
+    if branch_id:
+        appt_where.append('a.branch_id = %s')
+        appt_params.append(branch_id)
+    if category_id:
+        appt_where.append('a.category_id = %s')
+        appt_params.append(category_id)
+    if status_filter == 'attended':
+        appt_where.append('a.is_done = 1')
+    elif status_filter == 'not_attended':
+        appt_where.append('a.is_done = 0')
+
+    appt_where_sql = ' AND '.join(appt_where)
+
+    # Fast indexed scan on appointments
+    query = f"""
         SELECT 
-            COUNT(*) as total_daily_visits,
-            SUM(CASE WHEN v.visit_done = 1 THEN 1 ELSE 0 END) as attended_count,
-            SUM(CASE WHEN v.visit_done = 0 THEN 1 ELSE 0 END) as not_attended_count,
-            SUM(CASE WHEN v.is_core = 1 THEN 1 ELSE 0 END) as core_cat_total,
-            SUM(CASE WHEN v.is_core = 1 AND v.visit_done = 1 THEN 1 ELSE 0 END) as core_cat_attended,
-            SUM(CASE WHEN v.is_core = 1 AND v.visit_done = 0 THEN 1 ELSE 0 END) as core_cat_not_attended
-        FROM (
-            SELECT 
-                a.patients_id, 
-                a.date,
-                MAX(a.is_done) as visit_done,
-                MAX(CASE WHEN CAST(a.category_id AS UNSIGNED) IN (1, 2, 3, 4, 5, 6, 17, 18) THEN 1 ELSE 0 END) as is_core
-            FROM appointments a
-            LEFT JOIN patients p ON a.patients_id = p.id
-            WHERE {where_sql}
-            GROUP BY a.patients_id, a.date
-        ) v
+            a.id,
+            a.patients_id,
+            a.date,
+            a.time,
+            a.arrival_time,
+            a.is_done,
+            CAST(a.branch_id AS UNSIGNED) as branch_id,
+            CAST(a.category_id AS UNSIGNED) as category_id
+        FROM appointments a
+        WHERE {appt_where_sql}
+        ORDER BY a.date DESC, a.time DESC, a.id DESC
     """
-    cursor.execute(summary_sql, params)
-    s_row = cursor.fetchone()
-    total_appts = int(s_row[0] or 0)
-    attended_count = int(s_row[1] or 0)
-    not_attended_count = int(s_row[2] or 0)
-    core_cat_total = int(s_row[3] or 0)
-    core_cat_attended = int(s_row[4] or 0)
-    core_cat_not_attended = int(s_row[5] or 0)
+    cursor.execute(query, appt_params)
+    rows = cursor.fetchall()
+
+    ivf_categories = {1, 2, 11, 14, 50}
+    core_categories = {1, 2, 3, 4, 5, 6, 17, 18}
+
+    daily_patient_visits = {}
+    daily_category_visits = {}
+    daily_branch_visits = {}
+    filtered_appts_for_patient_table = []
+
+    for r in rows:
+        aid, pid, adate, atime, arr_time, is_done, bid, cid = r
+        # Exclude IVF donor visits
+        if cid in ivf_categories and pid in donor_pids:
+            continue
+
+        is_done_bool = (is_done == 1)
+        adate_str = str(adate)
+
+        # Deduplicate per patient per date
+        pd_key = (pid, adate_str)
+        if pd_key not in daily_patient_visits:
+            daily_patient_visits[pd_key] = {
+                'id': aid,
+                'pid': pid,
+                'date': adate_str,
+                'time': str(atime) if atime else '-',
+                'arrival_time': str(arr_time) if arr_time else '-',
+                'is_done': 1 if is_done_bool else 0,
+                'bid': bid,
+                'cid': cid,
+                'is_core': 1 if cid in core_categories else 0
+            }
+            filtered_appts_for_patient_table.append(daily_patient_visits[pd_key])
+        else:
+            if is_done_bool:
+                daily_patient_visits[pd_key]['is_done'] = 1
+            if cid in core_categories:
+                daily_patient_visits[pd_key]['is_core'] = 1
+
+        # Deduplicate per patient per date per category
+        cat_key = (pid, adate_str, cid)
+        if cat_key not in daily_category_visits:
+            daily_category_visits[cat_key] = 1 if is_done_bool else 0
+        elif is_done_bool:
+            daily_category_visits[cat_key] = 1
+
+        # Deduplicate per patient per date per branch
+        br_key = (pid, adate_str, bid)
+        if br_key not in daily_branch_visits:
+            daily_branch_visits[br_key] = 1 if is_done_bool else 0
+        elif is_done_bool:
+            daily_branch_visits[br_key] = 1
+
+    # Summary metrics
+    total_appts = len(daily_patient_visits)
+    attended_count = sum(1 for v in daily_patient_visits.values() if v['is_done'] == 1)
+    not_attended_count = total_appts - attended_count
+    core_cat_total = sum(1 for v in daily_patient_visits.values() if v['is_core'] == 1)
+    core_cat_attended = sum(1 for v in daily_patient_visits.values() if v['is_core'] == 1 and v['is_done'] == 1)
+    core_cat_not_attended = core_cat_total - core_cat_attended
     attendance_rate = round((attended_count / total_appts * 100), 1) if total_appts > 0 else 0
     no_show_rate = round((not_attended_count / total_appts * 100), 1) if total_appts > 0 else 0
 
-    # Category breakdown (deduplicated per patient per date)
-    cat_sql = f"""
-        SELECT 
-            COALESCE(c.id, 0) as category_id,
-            COALESCE(c.name, 'Unassigned') as category_name,
-            COUNT(*) as total_count,
-            SUM(CASE WHEN v.visit_done = 1 THEN 1 ELSE 0 END) as attended_count,
-            SUM(CASE WHEN v.visit_done = 0 THEN 1 ELSE 0 END) as not_attended_count
-        FROM (
-            SELECT 
-                a.patients_id,
-                a.date,
-                a.category_id,
-                MAX(a.is_done) as visit_done
-            FROM appointments a
-            LEFT JOIN patients p ON a.patients_id = p.id
-            WHERE {where_sql}
-            GROUP BY a.patients_id, a.date, a.category_id
-        ) v
-        LEFT JOIN category c ON CAST(v.category_id AS UNSIGNED) = c.id
-        GROUP BY c.id, c.name
-        ORDER BY total_count DESC
-    """
-    cursor.execute(cat_sql, params)
+    # Category breakdown
+    from collections import defaultdict
+    cat_stats = defaultdict(lambda: {'total': 0, 'attended': 0, 'not_attended': 0})
+    for (pid, d, cid), done in daily_category_visits.items():
+        cat_stats[cid]['total'] += 1
+        if done == 1:
+            cat_stats[cid]['attended'] += 1
+        else:
+            cat_stats[cid]['not_attended'] += 1
+
     categories = []
-    for r in cursor.fetchall():
-        c_tot = int(r[2] or 0)
-        c_att = int(r[3] or 0)
-        c_not = int(r[4] or 0)
+    for cid, st in sorted(cat_stats.items(), key=lambda x: x[1]['total'], reverse=True):
+        c_tot = st['total']
+        c_att = st['attended']
+        c_not = st['not_attended']
         categories.append({
-            'category_id': r[0],
-            'category_name': r[1],
+            'category_id': cid,
+            'category_name': cat_dict.get(cid, 'Unassigned' if cid == 0 else f'Category {cid}'),
             'total_appointments': c_tot,
             'attended': c_att,
             'not_attended': c_not,
-            'attendance_rate': round((c_att / c_tot * 100), 1) if c_tot > 0 else 0,
-            'no_show_rate': round((c_not / c_tot * 100), 1) if c_tot > 0 else 0,
+            'attendance_rate': round(c_att / c_tot * 100, 1) if c_tot > 0 else 0,
+            'no_show_rate': round(c_not / c_tot * 100, 1) if c_tot > 0 else 0,
         })
 
-    # Branch breakdown (deduplicated per patient per date)
-    branch_sql = f"""
-        SELECT 
-            COALESCE(b.id, 0) as branch_id,
-            COALESCE(b.name, 'Unassigned') as branch_name,
-            COUNT(*) as total_count,
-            SUM(CASE WHEN v.visit_done = 1 THEN 1 ELSE 0 END) as attended_count,
-            SUM(CASE WHEN v.visit_done = 0 THEN 1 ELSE 0 END) as not_attended_count
-        FROM (
-            SELECT 
-                a.patients_id,
-                a.date,
-                a.branch_id,
-                MAX(a.is_done) as visit_done
-            FROM appointments a
-            LEFT JOIN patients p ON a.patients_id = p.id
-            WHERE {where_sql}
-            GROUP BY a.patients_id, a.date, a.branch_id
-        ) v
-        LEFT JOIN branch b ON v.branch_id = b.id
-        GROUP BY b.id, b.name
-        ORDER BY total_count DESC
-    """
-    cursor.execute(branch_sql, params)
+    # Branch breakdown
+    br_stats = defaultdict(lambda: {'total': 0, 'attended': 0, 'not_attended': 0})
+    for (pid, d, bid), done in daily_branch_visits.items():
+        br_stats[bid]['total'] += 1
+        if done == 1:
+            br_stats[bid]['attended'] += 1
+        else:
+            br_stats[bid]['not_attended'] += 1
+
     branches = []
-    for r in cursor.fetchall():
-        b_tot = int(r[2] or 0)
-        b_att = int(r[3] or 0)
-        b_not = int(r[4] or 0)
+    for bid, st in sorted(br_stats.items(), key=lambda x: x[1]['total'], reverse=True):
+        b_tot = st['total']
+        b_att = st['attended']
+        b_not = st['not_attended']
         branches.append({
-            'branch_id': r[0],
-            'branch_name': r[1],
+            'branch_id': bid,
+            'branch_name': branch_dict.get(bid, 'Main Branch' if bid == 0 else f'Branch {bid}'),
             'total_appointments': b_tot,
             'attended': b_att,
             'not_attended': b_not,
-            'attendance_rate': round((b_att / b_tot * 100), 1) if b_tot > 0 else 0,
-            'no_show_rate': round((b_not / b_tot * 100), 1) if b_tot > 0 else 0,
+            'attendance_rate': round(b_att / b_tot * 100, 1) if b_tot > 0 else 0,
+            'no_show_rate': round(b_not / b_tot * 100, 1) if b_tot > 0 else 0,
         })
 
-    # Daily trend (deduplicated per patient per date)
-    daily_sql = f"""
-        SELECT 
-            v.date,
-            COUNT(*) as total_count,
-            SUM(CASE WHEN v.visit_done = 1 THEN 1 ELSE 0 END) as attended_count,
-            SUM(CASE WHEN v.visit_done = 0 THEN 1 ELSE 0 END) as not_attended_count
-        FROM (
-            SELECT 
-                a.patients_id,
-                a.date,
-                MAX(a.is_done) as visit_done
-            FROM appointments a
-            LEFT JOIN patients p ON a.patients_id = p.id
-            WHERE {where_sql}
-            GROUP BY a.patients_id, a.date
-        ) v
-        GROUP BY v.date
-        ORDER BY v.date ASC
-    """
-    cursor.execute(daily_sql, params)
+    # Daily trend
+    daily_stats = defaultdict(lambda: {'total': 0, 'attended': 0, 'not_attended': 0})
+    for v in daily_patient_visits.values():
+        d = v['date']
+        daily_stats[d]['total'] += 1
+        if v['is_done'] == 1:
+            daily_stats[d]['attended'] += 1
+        else:
+            daily_stats[d]['not_attended'] += 1
+
     daily_trend = []
-    for r in cursor.fetchall():
-        d_tot = int(r[1] or 0)
-        d_att = int(r[2] or 0)
-        d_not = int(r[3] or 0)
+    for d in sorted(daily_stats.keys()):
         daily_trend.append({
-            'date': str(r[0]),
-            'total_appointments': d_tot,
-            'attended': d_att,
-            'not_attended': d_not
+            'date': d,
+            'total_appointments': daily_stats[d]['total'],
+            'attended': daily_stats[d]['attended'],
+            'not_attended': daily_stats[d]['not_attended']
         })
 
-    patient_where = list(where_clauses)
-    patient_params = list(params)
+    # Fetch patient details for visible records (with search support)
+    patient_map = {}
+    candidate_appts = filtered_appts_for_patient_table
     if search_q:
-        patient_where.append("(p.name LIKE %s OR p.surname LIKE %s OR p.code LIKE %s OR p.mobile_number LIKE %s)")
-        patient_params.extend([f'%{search_q}%', f'%{search_q}%', f'%{search_q}%', f'%{search_q}%'])
+        search_like = f"%{search_q}%"
+        cursor.execute(
+            "SELECT id, code, name, mobile_number FROM patients WHERE name LIKE %s OR surname LIKE %s OR code LIKE %s OR mobile_number LIKE %s LIMIT 300",
+            [search_like, search_like, search_like, search_like]
+        )
+        for pr in cursor.fetchall():
+            patient_map[pr[0]] = {
+                'code': pr[1] or '-',
+                'name': (pr[2] or '').strip() or 'Unknown Patient',
+                'mobile': pr[3] or '-'
+            }
+        candidate_appts = [v for v in candidate_appts if v['pid'] in patient_map]
+    else:
+        top_pids = list(set(v['pid'] for v in candidate_appts[:200] if v['pid']))
+        if top_pids:
+            format_strings = ','.join(['%s'] * len(top_pids))
+            cursor.execute(f"SELECT id, code, name, mobile_number FROM patients WHERE id IN ({format_strings})", top_pids)
+            for pr in cursor.fetchall():
+                patient_map[pr[0]] = {
+                    'code': pr[1] or '-',
+                    'name': (pr[2] or '').strip() or 'Unknown Patient',
+                    'mobile': pr[3] or '-'
+                }
 
-    patient_where_sql = ' AND '.join(patient_where)
-    # Deduplicate same patient same date in the patient list as well
-    patient_sql = f"""
-        SELECT 
-            MAX(a.id) as id,
-            a.date,
-            MAX(a.time) as time,
-            MAX(a.arrival_time) as arrival_time,
-            MAX(a.is_done) as is_done,
-            p.code,
-            p.name,
-            p.surname,
-            p.mobile_number,
-            MAX(c.name) as category_name,
-            MAX(b.name) as branch_name
-        FROM appointments a
-        LEFT JOIN patients p ON a.patients_id = p.id
-        LEFT JOIN category c ON CAST(a.category_id AS UNSIGNED) = c.id
-        LEFT JOIN branch b ON a.branch_id = b.id
-        WHERE {patient_where_sql}
-        GROUP BY a.patients_id, a.date, p.code, p.name, p.surname, p.mobile_number
-        ORDER BY a.date DESC, MAX(a.time) DESC, MAX(a.id) DESC
-        LIMIT 200
-    """
-    cursor.execute(patient_sql, patient_params)
     patients_data = []
-    for r in cursor.fetchall():
-        full_name = (r[6] or '').strip() or 'Unknown Patient'
+    for v in candidate_appts[:200]:
+        pinfo = patient_map.get(v['pid'], {'code': '-', 'name': 'Unknown Patient', 'mobile': '-'})
         patients_data.append({
-            'appointment_id': r[0],
-            'date': str(r[1]) if r[1] else '',
-            'time': str(r[2]) if r[2] else '-',
-            'arrival_time': str(r[3]) if r[3] else '-',
-            'status': 'Attended' if r[4] == 1 else 'Not Attended',
-            'is_done': r[4],
-            'code': r[5] or '-',
-            'patient_name': full_name,
-            'mobile': r[8] or '-',
-            'category': r[9] or 'Unassigned',
-            'branch': r[10] or 'Main Branch'
+            'appointment_id': v['id'],
+            'date': v['date'],
+            'time': v['time'],
+            'arrival_time': v['arrival_time'],
+            'status': 'Attended' if v['is_done'] == 1 else 'Not Attended',
+            'is_done': v['is_done'],
+            'code': pinfo['code'],
+            'patient_name': pinfo['name'],
+            'mobile': pinfo['mobile'],
+            'category': cat_dict.get(v['cid'], 'Unassigned'),
+            'branch': branch_dict.get(v['bid'], 'Main Branch')
         })
-
-    cursor.execute('SELECT id, name FROM branch WHERE status = 1 ORDER BY name')
-    branch_options = [{'id': r[0], 'name': r[1]} for r in cursor.fetchall()]
-    cursor.execute('SELECT id, name FROM category WHERE status = 1 ORDER BY name')
-    category_options = [{'id': r[0], 'name': r[1]} for r in cursor.fetchall()]
 
     return JsonResponse({
         'status': 'success',
