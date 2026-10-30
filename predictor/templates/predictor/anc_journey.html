@@ -617,32 +617,406 @@
             }
         }
 
+    
+        /* ========================================================
+           EXECUTIVE DASHBOARD: VERTICAL SIDEBAR LAYOUT
+           ======================================================== */
+        :root {
+            --sidebar-width: 260px;
+            --sidebar-bg: #FFFFFF;
+            --sidebar-border: #E2E8F0;
+            --sidebar-text: #475569;
+            --sidebar-text-dark: #0F172A;
+            --sidebar-active-bg: #E0F2FE;
+            --sidebar-active-color: #0284C7;
+            --sidebar-hover-bg: #F1F5F9;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background-color: #F8FAFC !important;
+            overflow-x: hidden;
+        }
+
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        /* Sidebar Container */
+        .app-sidebar {
+            width: var(--sidebar-width);
+            min-width: var(--sidebar-width);
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            left: 0;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--sidebar-border);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            box-shadow: 2px 0 12px rgba(15, 23, 42, 0.03);
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Sidebar Brand */
+        .sidebar-brand {
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid var(--sidebar-border);
+        }
+
+        .brand-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .brand-symbol {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFFFFF;
+            font-size: 1.15rem;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+            flex-shrink: 0;
+        }
+
+        .brand-info {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.25;
+        }
+
+        .brand-name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #0F172A;
+            letter-spacing: -0.3px;
+        }
+
+        .brand-tag {
+            font-size: 0.72rem;
+            color: #64748B;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        /* Navigation Groups */
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 18px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 4px;
+        }
+
+        .sidebar-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-group-title {
+            font-size: 0.68rem;
+            font-weight: 800;
+            color: #94A3B8;
+            letter-spacing: 0.08em;
+            padding: 0 12px 6px;
+            text-transform: uppercase;
+        }
+
+        /* Sidebar Navigation Links */
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 9px;
+            text-decoration: none;
+            color: var(--sidebar-text);
+            font-size: 0.86rem;
+            font-weight: 600;
+            transition: all 0.18s ease;
+            position: relative;
+        }
+
+        .sidebar-link i {
+            font-size: 1rem;
+            width: 20px;
+            text-align: center;
+            color: #64748B;
+            transition: color 0.18s ease;
+        }
+
+        .sidebar-link:hover {
+            background: var(--sidebar-hover-bg);
+            color: #0F172A;
+        }
+
+        .sidebar-link:hover i {
+            color: #0284C7;
+        }
+
+        .sidebar-link.active {
+            background: var(--sidebar-active-bg);
+            color: var(--sidebar-active-color);
+            font-weight: 700;
+        }
+
+        .sidebar-link.active i {
+            color: var(--sidebar-active-color);
+        }
+
+        .sidebar-link.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 6px;
+            bottom: 6px;
+            width: 3.5px;
+            background: #0284C7;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .nav-badge {
+            margin-left: auto;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 12px;
+            background: #0284C7;
+            color: #FFFFFF;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        /* Sidebar Footer / System Status */
+        .sidebar-footer {
+            padding: 14px 16px;
+            border-top: 1px solid var(--sidebar-border);
+            background: #FAFCFF;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #10B981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+            flex-shrink: 0;
+        }
+
+        .status-title {
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: #1E293B;
+            line-height: 1.2;
+        }
+
+        .status-sub {
+            font-size: 0.68rem;
+            color: #64748B;
+        }
+
+        /* Main View Container */
+        .app-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 100vh;
+            background-color: #F8FAFC;
+        }
+
+        .app-main > .container,
+        .app-main > .main-container {
+            max-width: 1480px;
+            margin: 20px auto;
+            padding: 0 28px 48px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Mobile Top Bar */
+        .mobile-navbar {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            background: #FFFFFF;
+            border-bottom: 1px solid var(--sidebar-border);
+            padding: 12px 18px;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+        }
+
+        .mobile-menu-btn {
+            background: none;
+            border: 1px solid var(--sidebar-border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: #0F172A;
+        }
+
+        .mobile-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: #0F172A;
+        }
+
+        /* Responsive Mobile Drawer */
+        @media (max-width: 992px) {
+            .mobile-navbar {
+                display: flex;
+            }
+            .app-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                transform: translateX(-100%);
+            }
+            .app-sidebar.open {
+                transform: translateX(0);
+                box-shadow: 4px 0 24px rgba(15, 23, 42, 0.18);
+            }
+            .app-main > .container,
+            .app-main > .main-container {
+                padding: 16px 16px 36px;
+            }
+        }
+
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
 
     <!-- Top Navigation -->
-        <!-- Unified Top Navigation Bar -->
-    <header class="top-navbar">
-        <div class="navbar-content">
-            <a href="/iui/" class="navbar-brand">
-                <div class="brand-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                </div>
-                <span>Candor Healthcare <span class="brand-sub">AI Analytics</span></span>
-            </a>
-            <nav class="nav-links">
-                <a href="/iui/" class="nav-tab inactive">IUI Plan Predictor</a>
-                <a href="/ivf/" class="nav-tab inactive">IVF Plan Predictor</a>
-                <a href="/anc-journey/" class="nav-tab active">ANC &amp; Delivery Journey</a>
-                <a href="/opd-prediction/" class="nav-tab inactive">OPD Prediction &amp; Targets</a>
-                <a href="/opd-report/" class="nav-tab inactive">OPD Report</a>
-                <a href="/ivf-booking/" class="nav-tab inactive">IVF Booking Report</a>
-                <a href="/pharmacy-report/" class="nav-tab inactive">Pharmacy Report</a>
-                <a href="/collection-report/" class="nav-tab inactive">Collection Report</a>
+            <!-- App Shell Wrapper: Vertical Sidebar Layout -->
+    <div class="app-layout">
+        <!-- Vertical Sidebar -->
+        <aside class="app-sidebar" id="appSidebar">
+            <!-- Brand Header -->
+            <div class="sidebar-brand">
+                <a href="/iui/" class="brand-link">
+                    <div class="brand-symbol">
+                        <i class="fa-solid fa-heart-pulse"></i>
+                    </div>
+                    <div class="brand-info">
+                        <span class="brand-name">Candor Health</span>
+                        <span class="brand-tag">Clinical Analytics Suite</span>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Navigation Sections -->
+            <nav class="sidebar-nav">
+            <div class="sidebar-group">
+                <div class="sidebar-group-title">PREDICTIVE ENGINES</div>
+                <a href="/iui/" class="sidebar-link">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>IUI Plan Predictor</span>
+                    
+                </a>
+                <a href="/ivf/" class="sidebar-link">
+                    <i class="fa-solid fa-dna"></i>
+                    <span>IVF Plan Predictor</span>
+                    
+                </a>
+                <a href="/opd-prediction/" class="sidebar-link">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>OPD Forecast &amp; Targets</span>
+                    
+                </a>
+            </div>
+            <div class="sidebar-group">
+                <div class="sidebar-group-title">PATIENT JOURNEYS</div>
+                <a href="/anc-journey/" class="sidebar-link active">
+                    <i class="fa-solid fa-baby"></i>
+                    <span>ANC &amp; Delivery Journey</span>
+                    <span class="nav-badge">Live</span>
+                </a>
+                <a href="/opd-report/" class="sidebar-link">
+                    <i class="fa-solid fa-stethoscope"></i>
+                    <span>OPD Inflow Report</span>
+                    
+                </a>
+            </div>
+            <div class="sidebar-group">
+                <div class="sidebar-group-title">HOSPITAL OPERATIONS</div>
+                <a href="/ivf-booking/" class="sidebar-link">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <span>IVF Booking Report</span>
+                    
+                </a>
+                <a href="/pharmacy-report/" class="sidebar-link">
+                    <i class="fa-solid fa-pills"></i>
+                    <span>Pharmacy Revenue</span>
+                    
+                </a>
+                <a href="/collection-report/" class="sidebar-link">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>Collection &amp; Billing</span>
+                    
+                </a>
+            </div>
             </nav>
-        </div>
-    </header>
+
+            <!-- Sidebar Footer / System Status -->
+            <div class="sidebar-footer">
+                <div class="system-status">
+                    <div class="status-indicator"></div>
+                    <div class="status-text">
+                        <div class="status-title">Live Hospital Network</div>
+                        <div class="status-sub">18 Active Branches</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content View Area -->
+        <div class="app-main">
+            <!-- Mobile Top Bar with Toggle -->
+            <div class="mobile-navbar">
+                <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Toggle Navigation">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div class="mobile-brand">
+                    <i class="fa-solid fa-heart-pulse" style="color: #0284C7;"></i>
+                    <span>Candor Healthcare</span>
+                </div>
+            </div>
 
     <main class="container">
         <!-- Page Header -->
@@ -1919,5 +2293,24 @@
             setTimeout(initAncGsapAnimations, 150);
         }
     </script>
+        </div><!-- /.app-main -->
+    </div><!-- /.app-layout -->
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('appSidebar');
+            if (sidebar) sidebar.classList.toggle('open');
+        }
+        document.addEventListener('click', function(e) {
+            const sidebar = document.getElementById('appSidebar');
+            const menuBtn = document.querySelector('.mobile-menu-btn');
+            if (sidebar && sidebar.classList.contains('open')) {
+                if (!sidebar.contains(e.target) && (!menuBtn || !menuBtn.contains(e.target))) {
+                    sidebar.classList.remove('open');
+                }
+            }
+        });
+    </script>
+
 </body>
 </html>
