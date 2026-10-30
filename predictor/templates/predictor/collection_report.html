@@ -881,6 +881,114 @@
                 padding-bottom: 6px;
             }
         }
+    
+        /* Unified Top Navigation Styles Across All Pages */
+        .top-navbar {
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid #E2E8F0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+        }
+
+        .navbar-content {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .navbar-brand {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            color: #0F172A;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        .navbar-brand .brand-sub {
+            font-weight: 400;
+            color: #64748B;
+        }
+
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFFFFF;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+            flex-shrink: 0;
+        }
+
+        .brand-icon svg {
+            stroke: #FFFFFF;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 6px;
+            background: #F1F5F9;
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid #E2E8F0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .nav-tab {
+            padding: 8px 16px;
+            border-radius: 7px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            white-space: nowrap;
+        }
+
+        .nav-tab.active {
+            background: #0284C7;
+            color: #FFFFFF !important;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+            border: 1px solid #0369A1;
+        }
+
+        .nav-tab.inactive {
+            color: #64748B !important;
+            background: transparent;
+            border: 1px solid transparent;
+        }
+
+        .nav-tab.inactive:hover {
+            background: rgba(2, 132, 199, 0.08);
+            color: #0284C7 !important;
+        }
+
+        @media (max-width: 1200px) {
+            .navbar-content {
+                flex-direction: column;
+                padding: 10px 16px;
+            }
+            .nav-links {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -895,11 +1003,14 @@
     </div>
 
     <!-- Header Navigation -->
+        <!-- Unified Top Navigation Bar -->
     <header class="top-navbar">
         <div class="navbar-content">
-            <a href="/collection-report/" class="navbar-brand">
-                <div class="brand-icon">💼</div>
-                <span>Candor Healthcare <span style="font-weight: 400; color: #64748B;">AI Analytics</span></span>
+            <a href="/iui/" class="navbar-brand">
+                <div class="brand-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <span>Candor Healthcare <span class="brand-sub">AI Analytics</span></span>
             </a>
             <nav class="nav-links">
                 <a href="/iui/" class="nav-tab inactive">IUI Plan Predictor</a>

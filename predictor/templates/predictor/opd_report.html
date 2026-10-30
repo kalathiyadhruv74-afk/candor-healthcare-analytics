@@ -53,86 +53,25 @@
             min-height: 100vh;
         }
 
-        .header {
-            background: var(--white);
-            border-bottom: 1px solid var(--slate-200);
-            padding: 1rem 2rem;
-            position: sticky;
-            top: 0;
-            z-index: 50;
-        }
+        
 
-        .header-content {
-            max-width: 1650px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
+        
 
-        .logo-area {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
+        
 
-        .logo-icon {
-            background: linear-gradient(135deg, #0284C7, #0369A1);
-            color: white;
-            width: 42px;
-            height: 42px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-        }
+        
 
-        .logo-text h1 {
-            font-size: 1.25rem;
-            font-weight: 800;
-            color: var(--slate-900);
-            line-height: 1.2;
-        }
+        
 
-        .logo-text p {
-            font-size: 0.78rem;
-            color: var(--slate-500);
-            font-weight: 500;
-        }
+        
 
-        .nav-links {
-            display: flex;
-            gap: 0.4rem;
-            background: var(--slate-100);
-            padding: 0.35rem;
-            border-radius: 12px;
-            overflow-x: auto;
-        }
+        
 
-        .nav-tab {
-            padding: 0.55rem 0.95rem;
-            border-radius: 8px;
-            font-size: 0.82rem;
-            font-weight: 600;
-            text-decoration: none;
-            color: var(--slate-600);
-            transition: all 0.2s;
-            white-space: nowrap;
-        }
+        
 
-        .nav-tab:hover {
-            color: var(--slate-900);
-            background: rgba(255, 255, 255, 0.6);
-        }
+        
 
-        .nav-tab.active {
-            background: var(--white);
-            color: var(--primary);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
+        
 
         .main-container {
             max-width: 1650px;
@@ -536,6 +475,114 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+    
+        /* Unified Top Navigation Styles Across All Pages */
+        .top-navbar {
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid #E2E8F0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+        }
+
+        .navbar-content {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .navbar-brand {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            color: #0F172A;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        .navbar-brand .brand-sub {
+            font-weight: 400;
+            color: #64748B;
+        }
+
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #FFFFFF;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+            flex-shrink: 0;
+        }
+
+        .brand-icon svg {
+            stroke: #FFFFFF;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 6px;
+            background: #F1F5F9;
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid #E2E8F0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .nav-tab {
+            padding: 8px 16px;
+            border-radius: 7px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            white-space: nowrap;
+        }
+
+        .nav-tab.active {
+            background: #0284C7;
+            color: #FFFFFF !important;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+            border: 1px solid #0369A1;
+        }
+
+        .nav-tab.inactive {
+            color: #64748B !important;
+            background: transparent;
+            border: 1px solid transparent;
+        }
+
+        .nav-tab.inactive:hover {
+            background: rgba(2, 132, 199, 0.08);
+            color: #0284C7 !important;
+        }
+
+        @media (max-width: 1200px) {
+            .navbar-content {
+                flex-direction: column;
+                padding: 10px 16px;
+            }
+            .nav-links {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -547,26 +594,24 @@
             <div class="loader-subtext">Fetching real-time patient visits, categories &amp; branch metrics</div>
         </div>
     </div>
-    <header class="header">
-        <div class="header-content">
-            <div class="logo-area">
-                <div class="logo-icon">
-                    <i class="fa-solid fa-notes-medical"></i>
+        <!-- Unified Top Navigation Bar -->
+    <header class="top-navbar">
+        <div class="navbar-content">
+            <a href="/iui/" class="navbar-brand">
+                <div class="brand-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                 </div>
-                <div class="logo-text">
-                    <h1>Candor Healthcare</h1>
-                    <p>Clinical OPD &amp; Appointment Analytics</p>
-                </div>
-            </div>
+                <span>Candor Healthcare <span class="brand-sub">AI Analytics</span></span>
+            </a>
             <nav class="nav-links">
-                <a href="/iui/" class="nav-tab">IUI Plan Predictor</a>
-                <a href="/ivf/" class="nav-tab">IVF Plan Predictor</a>
-                <a href="/anc-journey/" class="nav-tab">ANC &amp; Delivery Journey</a>
-                <a href="/opd-prediction/" class="nav-tab">OPD Prediction &amp; Targets</a>
+                <a href="/iui/" class="nav-tab inactive">IUI Plan Predictor</a>
+                <a href="/ivf/" class="nav-tab inactive">IVF Plan Predictor</a>
+                <a href="/anc-journey/" class="nav-tab inactive">ANC &amp; Delivery Journey</a>
+                <a href="/opd-prediction/" class="nav-tab inactive">OPD Prediction &amp; Targets</a>
                 <a href="/opd-report/" class="nav-tab active">OPD Report</a>
-                <a href="/ivf-booking/" class="nav-tab">IVF Booking Report</a>
-                <a href="/pharmacy-report/" class="nav-tab">Pharmacy Report</a>
-                <a href="/collection-report/" class="nav-tab">Collection Report</a>
+                <a href="/ivf-booking/" class="nav-tab inactive">IVF Booking Report</a>
+                <a href="/pharmacy-report/" class="nav-tab inactive">Pharmacy Report</a>
+                <a href="/collection-report/" class="nav-tab inactive">Collection Report</a>
             </nav>
         </div>
     </header>
