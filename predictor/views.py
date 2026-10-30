@@ -221,12 +221,7 @@ def ivf_booking_analytics_api(request):
     cursor.execute(detail_query, detail_params)
     records = []
     for row in cursor.fetchall():
-        fname = row[3].strip() if row[3] else ""
-        sname = row[4].strip() if row[4] else ""
-        if sname and sname.lower() in fname.lower():
-            patient_name = fname
-        else:
-            patient_name = f"{fname} {sname}".strip()
+        patient_name = row[3].strip() if row[3] else "Unknown Patient"
 
         records.append({
             "payment_id": row[0],
@@ -1900,7 +1895,7 @@ def collection_analytics_api(request):
             d.amount,
             p.id as patient_id,
             p.code as patient_code,
-            CONCAT(IFNULL(p.name, ''), ' ', IFNULL(p.surname, '')) as patient_name,
+            IFNULL(p.name, 'Walk-in Patient') as patient_name,
             IFNULL(b.name, CONCAT('Branch ', d.branch_id)) as branch_name,
             CASE d.payment_type
                 WHEN 2 THEN 'Cash'
@@ -1946,7 +1941,7 @@ def collection_analytics_api(request):
             ac.total as amount,
             p.id as patient_id,
             p.code as patient_code,
-            CONCAT(IFNULL(p.name, ''), ' ', IFNULL(p.surname, '')) as patient_name,
+            IFNULL(p.name, 'Walk-in Patient') as patient_name,
             IFNULL(b.name, CONCAT('Branch ', a.branch_id)) as branch_name,
             CASE ac.payment_mode
                 WHEN 2 THEN 'Cash'
@@ -1992,7 +1987,7 @@ def collection_analytics_api(request):
             ({ei_gross_expr}) as amount,
             p.id as patient_id,
             p.code as patient_code,
-            CONCAT(IFNULL(p.name, ''), ' ', IFNULL(p.surname, '')) as patient_name,
+            IFNULL(p.name, 'Walk-in Patient') as patient_name,
             IFNULL(b.name, CONCAT('Branch ', ei.branch_id)) as branch_name,
             CASE 
                 WHEN ei.payment_upi > 0 THEN 'UPI'
@@ -2037,7 +2032,7 @@ def collection_analytics_api(request):
             (msc.payment_cash + msc.payment_upi + msc.payment_cheque + msc.payment_neft) as amount,
             p.id as patient_id,
             p.code as patient_code,
-            CONCAT(IFNULL(p.name, ''), ' ', IFNULL(p.surname, '')) as patient_name,
+            IFNULL(p.name, 'Walk-in Patient') as patient_name,
             IFNULL(b.name, CONCAT('Branch ', msc.branch_id)) as branch_name,
             CASE 
                 WHEN msc.payment_upi > 0 THEN 'UPI'
@@ -2293,12 +2288,7 @@ def anc_patients_filter_api(request):
             continue
         seen_pids.add(pid)
 
-        fname = r[2].strip() if r[2] else ""
-        sname = r[3].strip() if r[3] else ""
-        if sname and sname.lower() in fname.lower():
-            full_name = fname
-        else:
-            full_name = f"{fname} {sname}".strip()
+        full_name = r[2].strip() if r[2] else "Unknown Patient"
 
         status_text = r[9]
         if "Delivered" in status_text or "Completed" in status_text:
@@ -2881,7 +2871,7 @@ def opd_analytics_api(request):
     cursor.execute(patient_sql, patient_params)
     patients_data = []
     for r in cursor.fetchall():
-        full_name = f"{r[6] or ''} {r[7] or ''}".strip() or 'Unknown Patient'
+        full_name = (r[6] or '').strip() or 'Unknown Patient'
         patients_data.append({
             'appointment_id': r[0],
             'date': str(r[1]) if r[1] else '',
