@@ -107,7 +107,7 @@ if USE_LIVE_DO_MYSQL:
                 'charset': 'utf8mb4',
                 'connect_timeout': 10,
                 'read_default_file': None,
-                'init_command': 'SET SESSION lock_wait_timeout = 10, SESSION wait_timeout = 30, SESSION interactive_timeout = 30, SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED',
+                'init_command': "SET SESSION lock_wait_timeout = 10, SESSION wait_timeout = 30, SESSION interactive_timeout = 30, SESSION transaction_isolation = 'READ-UNCOMMITTED'",
             }
         }
     }
