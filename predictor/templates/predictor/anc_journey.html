@@ -11,6 +11,61 @@
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
     
     <style>
+
+        /* Unified Dual-Date Range Calendar Styling */
+        .date-range-container {
+            display: inline-flex;
+            align-items: center;
+            background: #FFFFFF;
+            border: 1px solid #CBD5E1;
+            border-radius: 6px;
+            padding: 8px 12px;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            min-width: 250px;
+            width: 100%;
+        }
+        .date-range-container:hover, .date-range-container:focus-within {
+            border-color: #0284C7;
+            box-shadow: 0 0 0 3px #E0F2FE;
+        }
+        .date-range-container svg {
+            color: #0284C7;
+            flex-shrink: 0;
+        }
+        .date-range-input {
+            border: none !important;
+            outline: none !important;
+            padding: 0 !important;
+            font-size: 0.88rem !important;
+            font-weight: 600 !important;
+            color: #0F172A !important;
+            background: transparent !important;
+            width: 100% !important;
+            cursor: pointer;
+        }
+        .flatpickr-calendar {
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1) !important;
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 14px !important;
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+        }
+        .flatpickr-day.selected.startRange, .flatpickr-day.startRange {
+            background: #0284C7 !important;
+            border-color: #0284C7 !important;
+        }
+        .flatpickr-day.selected.endRange, .flatpickr-day.endRange {
+            background: #0284C7 !important;
+            border-color: #0284C7 !important;
+        }
+        .flatpickr-day.inRange {
+            background: #E0F2FE !important;
+            border-color: #E0F2FE !important;
+            color: #0369A1 !important;
+        }
+    
         :root {
             /* Palette: White, Off-white, and Sky Blue Executive Healthcare Theme */
             --bg-page: #F8FAFC;
@@ -945,6 +1000,11 @@
 
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Flatpickr Date Range Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
 </head>
 <body>
 
@@ -2018,14 +2078,15 @@
 
                 <!-- Interactive Filters Bar -->
                 <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 18px; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
-                    <div style="flex: 1; min-width: 150px;">
-                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 6px;">START DATE</label>
-                        <input type="date" id="filter-start-date" value="2026-01-01" style="width: 100%; padding: 9px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.88rem; font-family: inherit; font-weight: 600;">
-                    </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 6px;">END DATE</label>
-                        <input type="date" id="filter-end-date" value="2026-01-31" style="width: 100%; padding: 9px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.88rem; font-family: inherit; font-weight: 600;">
-                    </div>
+                    <div style="flex: 1.5; min-width: 250px;">
+<label style="display: block; font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 6px;">DATE RANGE (START &amp; END DATE)</label>
+<div class="date-range-container">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <input type="text" id="ancDateRangePicker" class="date-range-input" placeholder="Select Start &amp; End date..." readonly>
+    <input type="hidden" id="filter-start-date" value="2026-01-01">
+    <input type="hidden" id="filter-end-date" value="2026-01-31">
+</div>
+</div>
                     <div style="flex: 1; min-width: 170px;">
                         <label style="display: block; font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 6px;">HOSPITAL BRANCH</label>
                         <select id="filter-branch" style="width: 100%; padding: 9px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.88rem; font-family: inherit; font-weight: 600; background: white;">
@@ -2307,7 +2368,35 @@
 
         // Load data automatically when page opens
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
+            
+        let fpAncInstance = null;
+        function initAncDateRangePicker() {
+            const startInput = document.getElementById('filter-start-date');
+            const endInput = document.getElementById('filter-end-date');
+            const rangeInput = document.getElementById('ancDateRangePicker');
+
+            fpAncInstance = flatpickr(rangeInput, {
+                mode: 'range',
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'M j, Y',
+                defaultDate: [startInput.value || '2026-01-01', endInput.value || '2026-01-31'],
+                showMonths: 2,
+                onChange: function(selectedDates, dateStr, instance) {
+                    if (selectedDates.length === 2) {
+                        startInput.value = instance.formatDate(selectedDates[0], 'Y-m-d');
+                        endInput.value = instance.formatDate(selectedDates[1], 'Y-m-d');
+                        if (typeof runAncPipelineFilter === 'function') runAncPipelineFilter();
+                    } else if (selectedDates.length === 1) {
+                        startInput.value = instance.formatDate(selectedDates[0], 'Y-m-d');
+                        endInput.value = instance.formatDate(selectedDates[0], 'Y-m-d');
+                    }
+                }
+            });
+        }
+    
+        document.addEventListener('DOMContentLoaded', () => {
+            initAncDateRangePicker();
                 loadPatientJourneyData();
                 setTimeout(initAncGsapAnimations, 150);
             });

@@ -12,6 +12,61 @@
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 
     <style>
+
+        /* Unified Dual-Date Range Calendar Styling */
+        .date-range-container {
+            display: inline-flex;
+            align-items: center;
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            min-width: 250px;
+        }
+        .date-range-container:hover, .date-range-container:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        .date-range-container i, .date-range-container svg {
+            color: var(--primary);
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .date-range-input {
+            border: none !important;
+            outline: none !important;
+            padding: 0 !important;
+            font-size: 0.88rem !important;
+            font-weight: 600 !important;
+            color: var(--text-main) !important;
+            background: transparent !important;
+            width: 100% !important;
+            cursor: pointer;
+        }
+        .flatpickr-calendar {
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1) !important;
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 14px !important;
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+        }
+        .flatpickr-day.selected.startRange, .flatpickr-day.startRange {
+            background: var(--primary) !important;
+            border-color: var(--primary) !important;
+        }
+        .flatpickr-day.selected.endRange, .flatpickr-day.endRange {
+            background: var(--primary) !important;
+            border-color: var(--primary) !important;
+        }
+        .flatpickr-day.inRange {
+            background: #E0F2FE !important;
+            border-color: #E0F2FE !important;
+            color: #0369A1 !important;
+        }
+    
         :root {
             /* Palette: Executive Healthcare Theme matching Candor suite */
             --bg-page: #F8FAFC;
@@ -1012,6 +1067,11 @@
 
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Flatpickr Date Range Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
 </head>
 <body>
 
@@ -1130,12 +1190,13 @@
         <div class="filter-bar">
             <div class="filter-group">
                 <div class="filter-item">
-                    <label>From Date</label>
-                    <input type="date" id="startDateInput" class="filter-input">
-                </div>
-                <div class="filter-item">
-                    <label>To Date</label>
-                    <input type="date" id="endDateInput" class="filter-input">
+                    <label>Date Range (Start &amp; End Date)</label>
+                    <div class="date-range-container">
+                        <i class="fa-regular fa-calendar-days"></i>
+                        <input type="text" id="ivfDateRangePicker" class="date-range-input" placeholder="Select Start &amp; End date..." readonly>
+                        <input type="hidden" id="startDateInput" value="">
+                        <input type="hidden" id="endDateInput" value="">
+                    </div>
                 </div>
                 <div class="filter-item">
                     <label>Branch</label>
@@ -1320,7 +1381,34 @@
         let sourcePieChartInstance = null;
         let monthlyTrendChartInstance = null;
 
+        
+        let fpIvfInstance = null;
+        function initIvfDateRangePicker() {
+            const startInput = document.getElementById('startDateInput');
+            const endInput = document.getElementById('endDateInput');
+            const rangeInput = document.getElementById('ivfDateRangePicker');
+
+            fpIvfInstance = flatpickr(rangeInput, {
+                mode: 'range',
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'M j, Y',
+                showMonths: 2,
+                onChange: function(selectedDates, dateStr, instance) {
+                    if (selectedDates.length === 2) {
+                        startInput.value = instance.formatDate(selectedDates[0], 'Y-m-d');
+                        endInput.value = instance.formatDate(selectedDates[1], 'Y-m-d');
+                        fetchReportData();
+                    } else if (selectedDates.length === 1) {
+                        startInput.value = instance.formatDate(selectedDates[0], 'Y-m-d');
+                        endInput.value = instance.formatDate(selectedDates[0], 'Y-m-d');
+                    }
+                }
+            });
+        }
+    
         document.addEventListener('DOMContentLoaded', () => {
+            initIvfDateRangePicker();
             fetchReportData();
 
             document.getElementById('applyFiltersBtn').addEventListener('click', () => {
@@ -1330,6 +1418,7 @@
             document.getElementById('resetFiltersBtn').addEventListener('click', () => {
                 document.getElementById('startDateInput').value = '';
                 document.getElementById('endDateInput').value = '';
+                if (fpIvfInstance) fpIvfInstance.clear();
                 document.getElementById('branchSelect').value = '';
                 document.getElementById('sourceSelect').value = '';
                 fetchReportData();
