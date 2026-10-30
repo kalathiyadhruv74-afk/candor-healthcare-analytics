@@ -38,13 +38,7 @@ def opd_prediction_page(request):
 def opd_report_page(request):
     from django.db import connection
     cursor = connection.cursor()
-    cursor.execute('''
-        SELECT DISTINCT b.id, b.name 
-        FROM branch b 
-        INNER JOIN appointments a ON CAST(a.branch_id AS UNSIGNED) = b.id 
-        WHERE a.deleted_at IS NULL 
-        ORDER BY b.name
-    ''')
+    cursor.execute('SELECT id, name FROM branch WHERE status = 1 ORDER BY name')
     branches = [{'id': r[0], 'name': r[1]} for r in cursor.fetchall()]
     cursor.execute('SELECT id, name FROM category WHERE status = 1 ORDER BY name')
     categories = [{'id': r[0], 'name': r[1]} for r in cursor.fetchall()]
@@ -2902,7 +2896,7 @@ def opd_analytics_api(request):
             'branch': r[10] or 'Main Branch'
         })
 
-    cursor.execute('''SELECT DISTINCT b.id, b.name FROM branch b INNER JOIN appointments a ON CAST(a.branch_id AS UNSIGNED) = b.id WHERE a.deleted_at IS NULL ORDER BY b.name''')
+    cursor.execute('SELECT id, name FROM branch WHERE status = 1 ORDER BY name')
     branch_options = [{'id': r[0], 'name': r[1]} for r in cursor.fetchall()]
     cursor.execute('SELECT id, name FROM category WHERE status = 1 ORDER BY name')
     category_options = [{'id': r[0], 'name': r[1]} for r in cursor.fetchall()]
