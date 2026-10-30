@@ -479,21 +479,74 @@
             font-size: 0.85rem;
         }
 
-        .loading-overlay {
+        /* Executive Full-Screen Loading Screen */
+        .global-loader {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(6px);
+            z-index: 9999;
             display: none;
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255, 255, 255, 0.7);
-            z-index: 20;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            font-weight: 600;
-            color: var(--primary);
-            border-radius: var(--radius-lg);
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .global-loader.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .loader-card {
+            background: #FFFFFF;
+            padding: 28px 36px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.3), 0 0 0 1px rgba(2, 132, 199, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            max-width: 380px;
+            text-align: center;
+        }
+
+        .spinner-large {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #E0F2FE;
+            border-top-color: #0284C7;
+            border-radius: 50%;
+            animation: spin 0.75s linear infinite;
+        }
+
+        .loader-text {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0F172A;
+        }
+
+        .loader-subtext {
+            font-size: 0.82rem;
+            color: #64748B;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
+    <!-- Global Screen Loader -->
+    <div id="globalLoader" class="global-loader">
+        <div class="loader-card">
+            <div class="spinner-large"></div>
+            <div class="loader-text">Loading Live OPD Analytics...</div>
+            <div class="loader-subtext">Fetching real-time patient visits, categories &amp; branch metrics</div>
+        </div>
+    </div>
     <header class="header">
         <div class="header-content">
             <div class="logo-area">
@@ -760,7 +813,18 @@
             }, 400);
         }
 
+        function showLoader() {
+            const loader = document.getElementById('globalLoader');
+            if (loader) loader.classList.add('active');
+        }
+
+        function hideLoader() {
+            const loader = document.getElementById('globalLoader');
+            if (loader) loader.classList.remove('active');
+        }
+
         async function loadOPDData() {
+            showLoader();
             const startDate = document.getElementById("startDate").value;
             const endDate = document.getElementById("endDate").value;
             const branchId = document.getElementById("branchSelect").value;
@@ -796,6 +860,8 @@
                 }
             } catch (err) {
                 console.error("Failed to fetch OPD analytics:", err);
+            } finally {
+                hideLoader();
             }
         }
 
