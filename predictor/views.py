@@ -9,19 +9,30 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import PredictionLog
 from .ml.model_engine import get_iui_predictor, get_ivf_predictor, sanitize_for_json
 
+# Feature Flags for modules (set ENABLE_PREDICTIVE_ENGINES = True in future to re-enable)
+ENABLE_PREDICTIVE_ENGINES = False
+
 def root_redirect(request):
-    return redirect("iui_page")
+    return redirect("opd_report_page")
 
 def iui_page(request):
+    if not ENABLE_PREDICTIVE_ENGINES:
+        return redirect("opd_report_page")
     return render(request, "predictor/iui.html")
 
 def ivf_page(request):
+    if not ENABLE_PREDICTIVE_ENGINES:
+        return redirect("opd_report_page")
     return render(request, "predictor/ivf.html")
 
 def anc_journey_page(request):
+    if not ENABLE_PREDICTIVE_ENGINES:
+        return redirect("opd_report_page")
     return render(request, "predictor/anc_journey.html")
 
 def opd_prediction_page(request):
+    if not ENABLE_PREDICTIVE_ENGINES:
+        return redirect("opd_report_page")
     return render(request, "predictor/opd_prediction.html")
 
 def opd_report_page(request):

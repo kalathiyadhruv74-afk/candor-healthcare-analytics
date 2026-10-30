@@ -1289,6 +1289,32 @@
             }
         }
 
+    
+        /* Disabled Sidebar Navigation Items */
+        .sidebar-link.disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+            background: transparent !important;
+            color: #94A3B8 !important;
+        }
+
+        .sidebar-link.disabled i {
+            color: #94A3B8 !important;
+        }
+
+        .nav-badge-disabled {
+            margin-left: auto;
+            font-size: 0.62rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: #E2E8F0;
+            color: #64748B;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
@@ -1304,13 +1330,13 @@
     </div>
 
     <!-- Header Navigation -->
-            <!-- App Shell Wrapper: Vertical Sidebar Layout -->
+                <!-- App Shell Wrapper: Vertical Sidebar Layout -->
     <div class="app-layout">
         <!-- Vertical Sidebar -->
         <aside class="app-sidebar" id="appSidebar">
             <!-- Brand Header -->
             <div class="sidebar-brand">
-                <a href="/iui/" class="brand-link">
+                <a href="/opd-report/" class="brand-link">
                     <div class="brand-symbol">
                         <i class="fa-solid fa-heart-pulse"></i>
                     </div>
@@ -1324,38 +1350,12 @@
             <!-- Navigation Sections -->
             <nav class="sidebar-nav">
             <div class="sidebar-group">
-                <div class="sidebar-group-title">PREDICTIVE ENGINES</div>
-                <a href="/iui/" class="sidebar-link">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    <span>IUI Plan Predictor</span>
-                    
-                </a>
-                <a href="/ivf/" class="sidebar-link">
-                    <i class="fa-solid fa-dna"></i>
-                    <span>IVF Plan Predictor</span>
-                    
-                </a>
-                <a href="/opd-prediction/" class="sidebar-link">
-                    <i class="fa-solid fa-chart-line"></i>
-                    <span>OPD Forecast &amp; Targets</span>
-                    
-                </a>
-            </div>
-            <div class="sidebar-group">
-                <div class="sidebar-group-title">PATIENT JOURNEYS</div>
-                <a href="/anc-journey/" class="sidebar-link">
-                    <i class="fa-solid fa-baby"></i>
-                    <span>ANC &amp; Delivery Journey</span>
-                    
-                </a>
+                <div class="sidebar-group-title">CLINICAL & FINANCIAL REPORTS</div>
                 <a href="/opd-report/" class="sidebar-link">
                     <i class="fa-solid fa-stethoscope"></i>
                     <span>OPD Inflow Report</span>
                     
                 </a>
-            </div>
-            <div class="sidebar-group">
-                <div class="sidebar-group-title">HOSPITAL OPERATIONS</div>
                 <a href="/ivf-booking/" class="sidebar-link">
                     <i class="fa-solid fa-calendar-check"></i>
                     <span>IVF Booking Report</span>
@@ -1371,6 +1371,29 @@
                     <span>Collection &amp; Billing</span>
                     <span class="nav-badge">Live</span>
                 </a>
+            </div>
+            <div class="sidebar-group">
+                <div class="sidebar-group-title">PREDICTIVE ENGINES (DISABLED)</div>
+                <div class="sidebar-link disabled" title="IUI Plan Predictor is temporarily inactive">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>IUI Plan Predictor</span>
+                    <span class="nav-badge-disabled">Disabled</span>
+                </div>
+                <div class="sidebar-link disabled" title="IVF Plan Predictor is temporarily inactive">
+                    <i class="fa-solid fa-dna"></i>
+                    <span>IVF Plan Predictor</span>
+                    <span class="nav-badge-disabled">Disabled</span>
+                </div>
+                <div class="sidebar-link disabled" title="OPD Forecast &amp; Targets is temporarily inactive">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>OPD Forecast &amp; Targets</span>
+                    <span class="nav-badge-disabled">Disabled</span>
+                </div>
+                <div class="sidebar-link disabled" title="ANC &amp; Delivery Journey is temporarily inactive">
+                    <i class="fa-solid fa-baby"></i>
+                    <span>ANC &amp; Delivery Journey</span>
+                    <span class="nav-badge-disabled">Disabled</span>
+                </div>
             </div>
             </nav>
 
