@@ -344,6 +344,57 @@
             width: 100%;
         }
 
+
+        /* Full Width & Optimized Patient Appointment Table */
+        .patient-table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        #patientTable {
+            width: 100%;
+            table-layout: auto;
+        }
+
+        #patientTable th, #patientTable td {
+            white-space: normal !important;
+            word-break: break-word;
+            padding: 0.65rem 0.75rem;
+            vertical-align: middle;
+            font-size: 0.83rem;
+        }
+
+        #patientTable th {
+            white-space: nowrap !important;
+            background: #F8FAFC;
+        }
+
+        .patient-name-cell {
+            min-width: 130px;
+            max-width: 180px;
+            line-height: 1.3;
+        }
+
+        .patient-cat-cell {
+            max-width: 130px;
+        }
+
+        .patient-branch-cell {
+            max-width: 120px;
+            font-size: 0.8rem;
+            color: var(--slate-600);
+        }
+
+        .patient-time-cell {
+            min-width: 95px;
+            white-space: nowrap !important;
+            line-height: 1.25;
+        }
+
+        .patient-code-cell {
+            white-space: nowrap !important;
+        }
+
         /* Tables */
         .table-responsive {
             overflow-x: auto;
@@ -1221,67 +1272,66 @@
             </div>
         </div>
 
-        <!-- Branch Breakdown & Patient Details -->
-        <div class="analytics-grid">
-            <div class="section-card">
-                <div class="section-header">
-                    <h2>
-                        <i class="fa-solid fa-users" style="color: var(--primary);"></i>
-                        Patient Appointment Details
-                    </h2>
-                    <div class="patient-filter-bar">
-                        <select id="patientCategoryFilter" class="patient-filter-select" onchange="loadOPDData()">
-                            <option value="">All Categories</option>
-                            {% for c in initial_categories %}
-                            <option value="{{ c.id }}">{{ c.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="search-box-wrap">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="patientSearch" placeholder="Search Patient, MRN, Mobile..." onkeyup="handleSearch(event)">
-                        </div>
+        <!-- Patient Appointment Details (Full Width Card for Complete Visibility Without Scrolling) -->
+        <div class="section-card" style="width: 100%;">
+            <div class="section-header" style="flex-wrap: wrap; gap: 0.75rem;">
+                <h2>
+                    <i class="fa-solid fa-users" style="color: var(--primary);"></i>
+                    Patient Appointment Details
+                </h2>
+                <div class="patient-filter-bar">
+                    <select id="patientCategoryFilter" class="patient-filter-select" onchange="loadOPDData()">
+                        <option value="">All Categories</option>
+                        {% for c in initial_categories %}
+                        <option value="{{ c.id }}">{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="search-box-wrap">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="patientSearch" placeholder="Search Patient, MRN, Mobile..." onkeyup="handleSearch(event)">
                     </div>
                 </div>
-                <div class="table-responsive">
-                    <table id="patientTable">
-                        <thead>
-                            <tr>
-                                <th>Date &amp; Time</th>
-                                <th>MRN Code</th>
-                                <th>Patient Name</th>
-                                <th>Category</th>
-                                <th>Branch</th>
-                                <th>Arrival Time</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="patientTableBody">
-                            <tr><td colspan="7" style="text-align: center; padding: 2rem;">Loading patient list...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
             </div>
+            <div class="table-responsive patient-table-wrap">
+                <table id="patientTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 12%;">Date &amp; Time</th>
+                            <th style="width: 11%;">MRN Code</th>
+                            <th style="width: 26%;">Patient Name &amp; Contact</th>
+                            <th style="width: 16%;">Category</th>
+                            <th style="width: 14%;">Branch</th>
+                            <th style="width: 9%;">Arrival</th>
+                            <th style="width: 12%;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patientTableBody">
+                        <tr><td colspan="7" style="text-align: center; padding: 2rem;">Loading patient list...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-            <div class="section-card">
-                <div class="section-header">
-                    <h2><i class="fa-solid fa-code-branch" style="color: var(--primary);"></i> Branch Breakdown</h2>
-                    <span class="badge-pill" id="branchCountPill">0 Branches</span>
-                </div>
-                <div class="table-responsive">
-                    <table id="branchTable">
-                        <thead>
-                            <tr>
-                                <th>Branch</th>
-                                <th>Total</th>
-                                <th>Attended</th>
-                                <th>No-Show %</th>
-                            </tr>
-                        </thead>
-                        <tbody id="branchTableBody">
-                            <tr><td colspan="4" style="text-align: center; padding: 2rem;">Loading branch data...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+        <!-- Branch Wise Breakdown Section -->
+        <div class="section-card" style="width: 100%;">
+            <div class="section-header">
+                <h2><i class="fa-solid fa-code-branch" style="color: var(--primary);"></i> Branch Wise OPD Breakdown</h2>
+                <span class="badge-pill" id="branchCountPill">0 Branches</span>
+            </div>
+            <div class="table-responsive">
+                <table id="branchTable">
+                    <thead>
+                        <tr>
+                            <th>Branch</th>
+                            <th>Total Appointments</th>
+                            <th>Attended OPD</th>
+                            <th>No-Show Rate (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="branchTableBody">
+                        <tr><td colspan="4" style="text-align: center; padding: 2rem;">Loading branch data...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </main>
@@ -1550,13 +1600,21 @@
 
                 html += `
                     <tr>
-                        <td><strong>${p.date}</strong> <span style="color: var(--slate-400); font-size: 0.75rem;">${p.time}</span></td>
-                        <td><code style="font-family: 'JetBrains Mono'; background: var(--slate-100); padding: 2px 6px; border-radius: 4px;">${p.code}</code></td>
-                        <td><strong>${p.patient_name}</strong><br><span style="color: var(--slate-400); font-size: 0.75rem;">${p.mobile}</span></td>
-                        <td><span class="category-tag">${p.category}</span></td>
-                        <td>${p.branch}</td>
-                        <td>${p.arrival_time !== '-' ? `<span style="font-weight: 600; color: var(--emerald);">${p.arrival_time}</span>` : '<span style="color: var(--slate-400);">-</span>'}</td>
-                        <td>${statusBadge}</td>
+                        <td class="patient-time-cell">
+                            <strong>${p.date}</strong><br>
+                            <span style="color: var(--slate-400); font-size: 0.75rem;"><i class="fa-regular fa-clock"></i> ${p.time}</span>
+                        </td>
+                        <td class="patient-code-cell">
+                            <code style="font-family: 'JetBrains Mono'; background: var(--slate-100); padding: 3px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: 700;">${p.code}</code>
+                        </td>
+                        <td class="patient-name-cell">
+                            <strong style="color: var(--slate-800);">${p.patient_name}</strong><br>
+                            <span style="color: var(--slate-500); font-size: 0.75rem;"><i class="fa-solid fa-phone" style="font-size: 0.68rem; color: var(--slate-400);"></i> ${p.mobile}</span>
+                        </td>
+                        <td class="patient-cat-cell"><span class="category-tag">${p.category}</span></td>
+                        <td class="patient-branch-cell"><strong>${p.branch}</strong></td>
+                        <td style="white-space: nowrap !important;">${p.arrival_time !== '-' ? `<span style="font-weight: 700; color: var(--emerald);">${p.arrival_time}</span>` : '<span style="color: var(--slate-400);">-</span>'}</td>
+                        <td style="white-space: nowrap !important;">${statusBadge}</td>
                     </tr>
                 `;
             });
