@@ -1130,7 +1130,7 @@ def collection_analytics_api(request):
 
     # --- 1. HEALTHCARE FILTERS (Strict parity with node-backend getNewCollectionReport) ---
     # Component A: indoor_deposits (is_deleted = 0)
-    hc_where = ["d.case_type IN ('Credit', 'Debit')"]
+    hc_where = ["d.case_type = 'Credit'"]
     hc_params = []
     if start_date:
         hc_where.append("DATE(d.created_at) >= %s")
@@ -1955,12 +1955,11 @@ def collection_analytics_api(request):
     total_pharmacy_collection = round(ph_gross - pr_return, 2)
     # 1. Total Collection (Gross Combined Collection = Total Healthcare Collection + Total Pharmacy Collection)
     total_gross_collection = round(total_healthcare_collection + total_pharmacy_collection, 2)
-    # 4. PAYMENT RETURN (Hospital Refund/Debit + Pharmacy Credit Note/Sales Return Register)
-    total_payment_return = round(hc_return + pr_return, 2)
+    # 4. PAYMENT RETURN (Pharmacy Credit Note / Sales Return Register)
+    total_payment_return = round(pr_return, 2)
     # 5. Collection (Net Final In-Hand Collection)
     # Total Pharmacy Collection is ALREADY net of pharmacy return (ph_gross - pr_return).
-    # Therefore, Net Collection = Total Healthcare Collection + Total Pharmacy Collection - Healthcare Return (do NOT double-deduct pharmacy return).
-    net_collection = round(total_healthcare_collection + total_pharmacy_collection - hc_return, 2)
+    net_collection = round(total_healthcare_collection + total_pharmacy_collection, 2)
 
     # Payment modes summary (Net)
     total_cash_net = 0.0 if exclude_cash else round(max(0.0, (combined_hc_cash + ph_cash) - pr_cash), 2)
@@ -2042,11 +2041,11 @@ def collection_analytics_api(request):
     monthly_trend = []
     for ym in all_months:
         ghc = hc_monthly.get(ym, {}).get("gross_hc", 0.0)
-        rhc = hc_monthly.get(ym, {}).get("return_hc", 0.0)
+        rhc = 0.0
         gph = ph_monthly.get(ym, 0.0)
         rph = pr_monthly.get(ym, 0.0)
         tot_gross = ghc + gph
-        tot_ret = rhc + rph
+        tot_ret = rph
         tot_net = tot_gross - tot_ret
         monthly_trend.append({
             "month": ym,
@@ -2287,7 +2286,7 @@ def collection_analytics_api(request):
         b_rph = round(b_pr_data.get(bid, 0.0), 2)
 
         b_gross = round(b_ghc + b_gph, 2)
-        b_ret = round(b_rhc + b_rph, 2)
+        b_ret = round(b_rph, 2)
         b_net = round(b_gross - b_ret, 2)
 
         if b_gross > 0 or b_ret > 0:
@@ -2519,8 +2518,7 @@ def collection_analytics_api(request):
     # Total Collection (Gross) = Total Healthcare Collection + Total Pharmacy Collection
     total_gross_collection = round(total_healthcare_collection + total_pharmacy_collection, 2)
     # Total Pharmacy Collection is ALREADY net of pharmacy return (ph_gross - pr_return).
-    # Net In-Hand Collection = Total Healthcare Collection + Total Pharmacy Collection - Healthcare Return
-    net_collection = round(total_healthcare_collection + total_pharmacy_collection - hc_return, 2)
+    net_collection = round(total_healthcare_collection + total_pharmacy_collection, 2)
 
     return JsonResponse({
         "status": "success",

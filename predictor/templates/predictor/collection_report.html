@@ -2058,7 +2058,7 @@
             document.getElementById('kpiPharmacyShare').textContent = `${phShare}% of Gross`;
             document.getElementById('kpiHealthcareCount').textContent = `${(s.transaction_counts.healthcare_credits || 0).toLocaleString('en-IN')} Deposits`;
             document.getElementById('kpiPharmacyCount').textContent = `${(s.transaction_counts.pharmacy_payments || 0).toLocaleString('en-IN')} Invoices`;
-            document.getElementById('kpiReturnBreakdown').textContent = `HC: ${formatINR(s.healthcare_return)} | Pharm: ${formatINR(s.pharmacy_return)}`;
+            document.getElementById('kpiReturnBreakdown').textContent = `Pharm: ${formatINR(s.pharmacy_return)}`;
 
             // Payment modes
             const m = s.payment_modes;
