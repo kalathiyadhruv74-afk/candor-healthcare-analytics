@@ -2962,7 +2962,8 @@ def opd_analytics_api(request):
     donor_pids = set(r[0] for r in cursor.fetchall())
 
     # 2. Build indexed appointments query (without expensive JOINs or temp tables on DB)
-    appt_where = ['a.deleted_at IS NULL']
+    # Exclude placeholder follow-up slots that have no scheduled time, no arrival time, and were never attended
+    appt_where = ['a.deleted_at IS NULL', 'NOT (a.time IS NULL AND a.arrival_time IS NULL AND a.is_done = 0)']
     appt_params = []
     if start_date:
         appt_where.append('a.date >= %s')
