@@ -1356,13 +1356,47 @@
                 altFormat: 'M j, Y',
                 defaultDate: [startInput.value || '2026-08-01', endInput.value || '2026-08-31'],
                 showMonths: 2,
+                closeOnSelect: false,
+                onReady: function(selectedDates, dateStr, instance) {
+                    const calendarContainer = instance.calendarContainer;
+                    if (calendarContainer && !calendarContainer.querySelector('.flatpickr-footer-actions')) {
+                        const footer = document.createElement('div');
+                        footer.className = 'flatpickr-footer-actions';
+                        footer.innerHTML = `
+                            <button type="button" class="flatpickr-btn-clear">Clear</button>
+                            <button type="button" class="flatpickr-btn-done">Done</button>
+                        `;
+                        footer.querySelector('.flatpickr-btn-clear').addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            instance.clear();
+                            startInput.value = '';
+                            endInput.value = '';
+                            instance.close();
+                            loadOPDData();
+                        });
+                        footer.querySelector('.flatpickr-btn-done').addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (instance.selectedDates.length === 2) {
+                                startInput.value = instance.formatDate(instance.selectedDates[0], 'Y-m-d');
+                                endInput.value = instance.formatDate(instance.selectedDates[1], 'Y-m-d');
+                            } else if (instance.selectedDates.length === 1) {
+                                startInput.value = instance.formatDate(instance.selectedDates[0], 'Y-m-d');
+                                endInput.value = instance.formatDate(instance.selectedDates[0], 'Y-m-d');
+                            }
+                            instance.close();
+                            loadOPDData();
+                        });
+                        calendarContainer.appendChild(footer);
+                    }
+                },
                 onChange: function(selectedDates, dateStr, instance) {
                     if (selectedDates.length === 2) {
                         const startYmd = instance.formatDate(selectedDates[0], 'Y-m-d');
                         const endYmd = instance.formatDate(selectedDates[1], 'Y-m-d');
                         startInput.value = startYmd;
                         endInput.value = endYmd;
-                        loadOPDData();
                     } else if (selectedDates.length === 1) {
                         const startYmd = instance.formatDate(selectedDates[0], 'Y-m-d');
                         startInput.value = startYmd;
