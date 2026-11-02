@@ -1603,13 +1603,265 @@ def collection_analytics_api(request):
     stream_emb = round(ei_gross, 2)
     stream_emb_cnt = ei_count
 
-    # Combined Healthcare Aggregates (Healthcare Total = sum of clinical streams + O.Income)
-    combined_hc_gross = round(hc_gross + ac_gross + ei_gross + stream_oinc, 2)
-    combined_hc_credit_count = hc_credit_count + ac_count + ei_count + stream_oinc_cnt
-    combined_hc_cash = round(hc_cash + ac_cash + ei_cash + im_cash, 2)
-    combined_hc_upi = round(hc_upi + ac_upi + ei_upi + im_upi, 2)
-    combined_hc_cheque = round(hc_cheque + ac_cheque + ei_cheque + im_cheque, 2)
-    combined_hc_neft = round(hc_neft + ac_neft + ei_neft + im_neft, 2)
+    # 10. Pediatric Total Income (getPedCollection in node-backend reports.controller.js)
+    # totalOpd: income_manager with ec.is_pediatric = 1, ec.type = 1, ec.status = 1
+    ped_opd_where = [
+        "ec.is_pediatric = 1",
+        "ec.type = 1",
+        "ec.status = 1"
+    ]
+    ped_opd_params = []
+    if start_date:
+        ped_opd_where.append("DATE(im.date) >= %s")
+        ped_opd_params.append(start_date)
+    if end_date:
+        ped_opd_where.append("DATE(im.date) <= %s")
+        ped_opd_params.append(end_date)
+    if branch_id:
+        ped_opd_where.append("(im.branch_id = %s OR im.branch_id = %s)")
+        ped_opd_params.extend([branch_id, str(branch_id)])
+    if exclude_cash:
+        ped_opd_where.append("im.payment_method != 1")
+
+    cursor.execute(f"""
+        SELECT 
+            COALESCE(SUM(im.amount), 0), 
+            COUNT(im.id),
+            COALESCE(SUM(CASE WHEN im.payment_method = 1 THEN im.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN im.payment_method = 3 THEN im.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN im.payment_method = 2 THEN im.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN im.payment_method = 4 THEN im.amount ELSE 0 END), 0)
+        FROM income_manager im
+        INNER JOIN expance_category ec ON ec.id = im.income_category
+        WHERE {" AND ".join(ped_opd_where)}
+    """, ped_opd_params)
+    ped_opd_row = cursor.fetchone() or (0, 0, 0, 0, 0, 0)
+    ped_opd_total = float(ped_opd_row[0] or 0.0)
+    ped_opd_cnt = int(ped_opd_row[1] or 0)
+    ped_cash = float(ped_opd_row[2] or 0.0)
+    ped_upi = float(ped_opd_row[3] or 0.0)
+    ped_cheque = float(ped_opd_row[4] or 0.0)
+    ped_neft = float(ped_opd_row[5] or 0.0)
+
+    # totalIpd invoices: indoor_books ib (is_pediatric_patient=1, is_final_invoice=1) + indoor_invoices ii
+    ped_inv_where = [
+        "ib.is_pediatric_patient = 1",
+        "ib.is_final_invoice = 1",
+        "ib.final_invoice_date IS NOT NULL"
+    ]
+    ped_inv_params = []
+    if start_date:
+        ped_inv_where.append("ib.final_invoice_date >= %s")
+        ped_inv_params.append(f"{start_date} 00:00:00")
+    if end_date:
+        ped_inv_where.append("ib.final_invoice_date <= %s")
+        ped_inv_params.append(f"{end_date} 23:59:59")
+    if branch_id:
+        ped_inv_where.append("ib.branch_id = %s")
+        ped_inv_params.append(branch_id)
+    if payment_type:
+        ped_inv_where.append("ii.payment_mode = %s")
+        ped_inv_params.append(payment_type)
+    elif exclude_cash:
+        ped_inv_where.append("ii.payment_mode != 2")
+
+    cursor.execute(f"""
+        SELECT 
+            COALESCE(SUM(ii.grand_total_amt), 0), 
+            COUNT(ii.id),
+            COALESCE(SUM(CASE WHEN ii.payment_mode = 2 THEN ii.grand_total_amt ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN ii.payment_mode = 4 THEN ii.grand_total_amt ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN ii.payment_mode = 3 THEN ii.grand_total_amt ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN ii.payment_mode = 5 THEN ii.grand_total_amt ELSE 0 END), 0)
+        FROM indoor_books ib
+        LEFT JOIN indoor_invoices ii ON ii.booking_id = ib.id
+        WHERE {" AND ".join(ped_inv_where)}
+    """, ped_inv_params)
+    ped_inv_row = cursor.fetchone() or (0, 0, 0, 0, 0, 0)
+    ped_inv_total = float(ped_inv_row[0] or 0.0)
+    ped_inv_cnt = int(ped_inv_row[1] or 0)
+    ped_cash += float(ped_inv_row[2] or 0.0)
+    ped_upi += float(ped_inv_row[3] or 0.0)
+    ped_cheque += float(ped_inv_row[4] or 0.0)
+    ped_neft += float(ped_inv_row[5] or 0.0)
+
+    # totalIpd deposits: indoor_deposits d (is_pediatric=1, charge_type=4, case_type='Credit')
+    ped_dep_where = [
+        "d.is_pediatric = 1",
+        "d.case_type = 'Credit'",
+        "d.charge_type = 4"
+    ]
+    ped_dep_params = []
+    if start_date:
+        ped_dep_where.append("d.created_at >= %s")
+        ped_dep_params.append(f"{start_date} 00:00:00")
+    if end_date:
+        ped_dep_where.append("d.created_at <= %s")
+        ped_dep_params.append(f"{end_date} 23:59:59")
+    if branch_id:
+        ped_dep_where.append("d.branch_id = %s")
+        ped_dep_params.append(branch_id)
+    if payment_type:
+        ped_dep_where.append("d.payment_type = %s")
+        ped_dep_params.append(payment_type)
+    elif exclude_cash:
+        ped_dep_where.append("d.payment_type != 2")
+
+    cursor.execute(f"""
+        SELECT 
+            COALESCE(SUM(d.amount), 0), 
+            COUNT(d.id),
+            COALESCE(SUM(CASE WHEN d.payment_type = 2 THEN d.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN d.payment_type = 4 THEN d.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN d.payment_type = 3 THEN d.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN d.payment_type = 5 THEN d.amount ELSE 0 END), 0)
+        FROM indoor_deposits d
+        WHERE {" AND ".join(ped_dep_where)}
+    """, ped_dep_params)
+    ped_dep_row = cursor.fetchone() or (0, 0, 0, 0, 0, 0)
+    ped_dep_total = float(ped_dep_row[0] or 0.0)
+    ped_dep_cnt = int(ped_dep_row[1] or 0)
+    ped_cash += float(ped_dep_row[2] or 0.0)
+    ped_upi += float(ped_dep_row[3] or 0.0)
+    ped_cheque += float(ped_dep_row[4] or 0.0)
+    ped_neft += float(ped_dep_row[5] or 0.0)
+
+    stream_pediatric = round(ped_opd_total + ped_inv_total + ped_dep_total, 2)
+    stream_ped_cnt = ped_opd_cnt + ped_inv_cnt + ped_dep_cnt
+
+    # 11. Medicare Total Income (getmedicareCollection in node-backend reports.controller.js)
+    # totalOpd: income_manager with ec.is_medicare = 1, ec.type = 1, ec.status = 1
+    medicare_opd_where = [
+        "ec.is_medicare = 1",
+        "ec.type = 1",
+        "ec.status = 1"
+    ]
+    medicare_opd_params = []
+    if start_date:
+        medicare_opd_where.append("DATE(im.date) >= %s")
+        medicare_opd_params.append(start_date)
+    if end_date:
+        medicare_opd_where.append("DATE(im.date) <= %s")
+        medicare_opd_params.append(end_date)
+    if branch_id:
+        medicare_opd_where.append("(im.branch_id = %s OR im.branch_id = %s)")
+        medicare_opd_params.extend([branch_id, str(branch_id)])
+    if exclude_cash:
+        medicare_opd_where.append("im.payment_method != 1")
+
+    cursor.execute(f"""
+        SELECT 
+            COALESCE(SUM(im.amount), 0), 
+            COUNT(im.id),
+            COALESCE(SUM(CASE WHEN im.payment_method = 1 THEN im.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN im.payment_method = 3 THEN im.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN im.payment_method = 2 THEN im.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN im.payment_method = 4 THEN im.amount ELSE 0 END), 0)
+        FROM income_manager im
+        INNER JOIN expance_category ec ON ec.id = im.income_category
+        WHERE {" AND ".join(medicare_opd_where)}
+    """, medicare_opd_params)
+    medicare_opd_row = cursor.fetchone() or (0, 0, 0, 0, 0, 0)
+    medicare_opd_total = float(medicare_opd_row[0] or 0.0)
+    medicare_opd_cnt = int(medicare_opd_row[1] or 0)
+    medicare_cash = float(medicare_opd_row[2] or 0.0)
+    medicare_upi = float(medicare_opd_row[3] or 0.0)
+    medicare_cheque = float(medicare_opd_row[4] or 0.0)
+    medicare_neft = float(medicare_opd_row[5] or 0.0)
+
+    # totalIpd invoices: indoor_books ib (is_medicare_patient=1, is_final_invoice=1) + indoor_invoices ii
+    medicare_inv_where = [
+        "ib.is_medicare_patient = 1",
+        "ib.is_final_invoice = 1",
+        "ib.final_invoice_date IS NOT NULL"
+    ]
+    medicare_inv_params = []
+    if start_date:
+        medicare_inv_where.append("ib.final_invoice_date >= %s")
+        medicare_inv_params.append(f"{start_date} 00:00:00")
+    if end_date:
+        medicare_inv_where.append("ib.final_invoice_date <= %s")
+        medicare_inv_params.append(f"{end_date} 23:59:59")
+    if branch_id:
+        medicare_inv_where.append("ib.branch_id = %s")
+        medicare_inv_params.append(branch_id)
+    if payment_type:
+        medicare_inv_where.append("ii.payment_mode = %s")
+        medicare_inv_params.append(payment_type)
+    elif exclude_cash:
+        medicare_inv_where.append("ii.payment_mode != 2")
+
+    cursor.execute(f"""
+        SELECT 
+            COALESCE(SUM(ii.grand_total_amt), 0), 
+            COUNT(ii.id),
+            COALESCE(SUM(CASE WHEN ii.payment_mode = 2 THEN ii.grand_total_amt ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN ii.payment_mode = 4 THEN ii.grand_total_amt ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN ii.payment_mode = 3 THEN ii.grand_total_amt ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN ii.payment_mode = 5 THEN ii.grand_total_amt ELSE 0 END), 0)
+        FROM indoor_books ib
+        LEFT JOIN indoor_invoices ii ON ii.booking_id = ib.id
+        WHERE {" AND ".join(medicare_inv_where)}
+    """, medicare_inv_params)
+    medicare_inv_row = cursor.fetchone() or (0, 0, 0, 0, 0, 0)
+    medicare_inv_total = float(medicare_inv_row[0] or 0.0)
+    medicare_inv_cnt = int(medicare_inv_row[1] or 0)
+    medicare_cash += float(medicare_inv_row[2] or 0.0)
+    medicare_upi += float(medicare_inv_row[3] or 0.0)
+    medicare_cheque += float(medicare_inv_row[4] or 0.0)
+    medicare_neft += float(medicare_inv_row[5] or 0.0)
+
+    # totalIpd deposits: indoor_deposits d (is_medicare=1, charge_type=4, case_type='Credit')
+    medicare_dep_where = [
+        "d.is_medicare = 1",
+        "d.case_type = 'Credit'",
+        "d.charge_type = 4"
+    ]
+    medicare_dep_params = []
+    if start_date:
+        medicare_dep_where.append("d.created_at >= %s")
+        medicare_dep_params.append(f"{start_date} 00:00:00")
+    if end_date:
+        medicare_dep_where.append("d.created_at <= %s")
+        medicare_dep_params.append(f"{end_date} 23:59:59")
+    if branch_id:
+        medicare_dep_where.append("d.branch_id = %s")
+        medicare_dep_params.append(branch_id)
+    if payment_type:
+        medicare_dep_where.append("d.payment_type = %s")
+        medicare_dep_params.append(payment_type)
+    elif exclude_cash:
+        medicare_dep_where.append("d.payment_type != 2")
+
+    cursor.execute(f"""
+        SELECT 
+            COALESCE(SUM(d.amount), 0), 
+            COUNT(d.id),
+            COALESCE(SUM(CASE WHEN d.payment_type = 2 THEN d.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN d.payment_type = 4 THEN d.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN d.payment_type = 3 THEN d.amount ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN d.payment_type = 5 THEN d.amount ELSE 0 END), 0)
+        FROM indoor_deposits d
+        WHERE {" AND ".join(medicare_dep_where)}
+    """, medicare_dep_params)
+    medicare_dep_row = cursor.fetchone() or (0, 0, 0, 0, 0, 0)
+    medicare_dep_total = float(medicare_dep_row[0] or 0.0)
+    medicare_dep_cnt = int(medicare_dep_row[1] or 0)
+    medicare_cash += float(medicare_dep_row[2] or 0.0)
+    medicare_upi += float(medicare_dep_row[3] or 0.0)
+    medicare_cheque += float(medicare_dep_row[4] or 0.0)
+    medicare_neft += float(medicare_dep_row[5] or 0.0)
+
+    stream_medicare = round(medicare_opd_total + medicare_inv_total + medicare_dep_total, 2)
+    stream_med_cnt = medicare_opd_cnt + medicare_inv_cnt + medicare_dep_cnt
+
+    # Combined Healthcare Aggregates (Healthcare Total = sum of clinical streams + O.Income + Pediatric + Medicare)
+    combined_hc_gross = round(hc_gross + ac_gross + ei_gross + stream_oinc + stream_pediatric + stream_medicare, 2)
+    combined_hc_credit_count = hc_credit_count + ac_count + ei_count + stream_oinc_cnt + stream_ped_cnt + stream_med_cnt
+    combined_hc_cash = round(hc_cash + ac_cash + ei_cash + im_cash + ped_cash + medicare_cash, 2)
+    combined_hc_upi = round(hc_upi + ac_upi + ei_upi + im_upi + ped_upi + medicare_upi, 2)
+    combined_hc_cheque = round(hc_cheque + ac_cheque + ei_cheque + im_cheque + ped_cheque + medicare_cheque, 2)
+    combined_hc_neft = round(hc_neft + ac_neft + ei_neft + im_neft + ped_neft + medicare_neft, 2)
     combined_hc_other = round(hc_other + ac_other + ei_other + im_other, 2)
 
     # --- EXECUTE PHARMACY COLLECTION AGGREGATE (Sales Register: mpi) ---
@@ -2069,24 +2321,27 @@ def collection_analytics_api(request):
     # Sort records descending by date
     records.sort(key=lambda x: x["date"], reverse=True)
 
-    # Total Income = USG + H.Inj + IUI + IVF + OPD + IPD + O.Income + Medicine Income + Embryology Income
+    # Total Income = USG + H.Inj + IUI + IVF + OPD + IPD + O.Income + Medicine Income + Embryology Income + Pediatric + Medicare
     total_income_amount = round(
         stream_usg + stream_hinj + stream_iui + stream_ivf + stream_opd +
-        stream_ipd + stream_oinc + stream_medicine + stream_emb,
+        stream_ipd + stream_oinc + stream_medicine + stream_emb +
+        stream_pediatric + stream_medicare,
         2
     )
 
     categories_breakdown = [
-        {"key": "USG", "name": "USG", "amount": stream_usg, "count": stream_usg_cnt, "icon": "📡", "color": "#0284C7"},
-        {"key": "H_INJ", "name": "H.Inj", "amount": stream_hinj, "count": stream_hinj_cnt, "icon": "💉", "color": "#10B981"},
-        {"key": "IUI", "name": "IUI", "amount": stream_iui, "count": stream_iui_cnt, "icon": "🔬", "color": "#F59E0B"},
-        {"key": "IVF", "name": "IVF", "amount": stream_ivf, "count": stream_ivf_cnt, "icon": "🧬", "color": "#8B5CF6"},
-        {"key": "OPD", "name": "OPD", "amount": stream_opd, "count": stream_opd_cnt, "icon": "🩺", "color": "#06B6D4"},
-        {"key": "IPD", "name": "IPD", "amount": stream_ipd, "count": stream_ipd_cnt, "icon": "🛏️", "color": "#EC4899"},
-        {"key": "O_INCOME", "name": "O.Income", "amount": stream_oinc, "count": stream_oinc_cnt, "icon": "📈", "color": "#F97316"},
-        {"key": "MEDICINE", "name": "Medicine Income", "amount": stream_medicine, "count": stream_medicine_cnt, "icon": "💊", "color": "#14B8A6"},
-        {"key": "EMBRYOLOGY", "name": "Embryology Income", "amount": stream_emb, "count": stream_emb_cnt, "icon": "🧪", "color": "#6366F1"},
-        {"key": "TOTAL_INCOME", "name": "Total Income", "amount": total_income_amount, "count": stream_usg_cnt + stream_hinj_cnt + stream_iui_cnt + stream_ivf_cnt + stream_opd_cnt + stream_ipd_cnt + stream_oinc_cnt + stream_medicine_cnt + stream_emb_cnt, "icon": "💎", "color": "#0F172A"}
+        {"key": "USG", "name": "USG", "amount": stream_usg, "count": stream_usg_cnt, "icon": "📡", "color": "#0284C7", "unit": "Scans"},
+        {"key": "H_INJ", "name": "H.Inj", "amount": stream_hinj, "count": stream_hinj_cnt, "icon": "💉", "color": "#10B981", "unit": "Injections"},
+        {"key": "IUI", "name": "IUI", "amount": stream_iui, "count": stream_iui_cnt, "icon": "🔬", "color": "#F59E0B", "unit": "Cycles"},
+        {"key": "IVF", "name": "IVF", "amount": stream_ivf, "count": stream_ivf_cnt, "icon": "🧬", "color": "#8B5CF6", "unit": "Treatments"},
+        {"key": "OPD", "name": "OPD", "amount": stream_opd, "count": stream_opd_cnt, "icon": "🩺", "color": "#06B6D4", "unit": "Patients"},
+        {"key": "IPD", "name": "IPD", "amount": stream_ipd, "count": stream_ipd_cnt, "icon": "🛏️", "color": "#EC4899", "unit": "Indoor"},
+        {"key": "O_INCOME", "name": "O.Income", "amount": stream_oinc, "count": stream_oinc_cnt, "icon": "📈", "color": "#F97316", "unit": "Entries"},
+        {"key": "MEDICINE", "name": "Medicine Income", "amount": stream_medicine, "count": stream_medicine_cnt, "icon": "💊", "color": "#14B8A6", "unit": "Invoices"},
+        {"key": "EMBRYOLOGY", "name": "Embryology Income", "amount": stream_emb, "count": stream_emb_cnt, "icon": "🧪", "color": "#6366F1", "unit": "Procedures"},
+        {"key": "PEDIATRIC", "name": "Pediatric Total Income", "amount": stream_pediatric, "count": stream_ped_cnt, "icon": "👶", "color": "#F43F5E", "unit": "Cases"},
+        {"key": "MEDICARE", "name": "Medicare Total Income", "amount": stream_medicare, "count": stream_med_cnt, "icon": "🛡️", "color": "#3B82F6", "unit": "Cases"},
+        {"key": "TOTAL_INCOME", "name": "Total Income", "amount": total_income_amount, "count": stream_usg_cnt + stream_hinj_cnt + stream_iui_cnt + stream_ivf_cnt + stream_opd_cnt + stream_ipd_cnt + stream_oinc_cnt + stream_medicine_cnt + stream_emb_cnt + stream_ped_cnt + stream_med_cnt, "icon": "💎", "color": "#0F172A", "unit": "Total Inflow"}
     ]
 
     # Total Healthcare Collection = Total Income from all departmental healthcare streams (reports/newCollectionReports)
