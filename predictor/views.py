@@ -2064,75 +2064,245 @@ def collection_analytics_api(request):
     all_branch_rows = cursor.fetchall()
     branches = [{"id": b[0], "name": b[1]} for b in all_branch_rows]
 
-    # Branch aggregations across all clinical tables (Indoor + OPD + Embryology) + pharmacy sales + pharmacy return
-    branch_stats_sql = f"""
+    # Branch aggregations across all 11 Healthcare Streams + Pharmacy Sales + Pharmacy Return
+    # 1. Appointments (USG + OPD consultation)
+    b_appt_where = ["1=1"]
+    b_appt_params = []
+    if start_date:
+        b_appt_where.append("a.date >= %s")
+        b_appt_params.append(start_date)
+    if end_date:
+        b_appt_where.append("a.date <= %s")
+        b_appt_params.append(end_date)
+    if branch_id:
+        b_appt_where.append("a.branch_id = %s")
+        b_appt_params.append(branch_id)
+    if payment_type:
+        b_appt_where.append("ac.payment_mode = %s")
+        b_appt_params.append(payment_type)
+    elif exclude_cash:
+        b_appt_where.append("ac.payment_mode != 2")
+
+    cursor.execute(f"""
         SELECT 
-            b.id,
-            b.name,
-            (COALESCE(hc.gross_hc, 0) + COALESCE(ac.gross_ac, 0) + COALESCE(ei.gross_ei, 0)) as gross_hc,
-            COALESCE(hc.return_hc, 0) as return_hc,
-            COALESCE(ph.gross_ph, 0) as gross_ph,
-            COALESCE(pr.return_ph, 0) as return_ph
-        FROM branch b
-        LEFT JOIN (
-            SELECT CAST(branch_id AS UNSIGNED) as b_id,
-                   SUM(CASE WHEN case_type = 'Credit' THEN amount ELSE 0 END) as gross_hc,
-                   SUM(CASE WHEN case_type = 'Debit' THEN amount ELSE 0 END) as return_hc
-            FROM indoor_deposits d
-            WHERE {hc_where_sql}
-            GROUP BY b_id
-        ) hc ON hc.b_id = b.id
-        LEFT JOIN (
-            SELECT CAST(a.branch_id AS UNSIGNED) as b_id,
-                   SUM(ac.total) as gross_ac
-            FROM appointment_charges ac
-            JOIN appointments a ON ac.appointment_id = a.id
-            WHERE {ac_where_sql}
-            GROUP BY b_id
-        ) ac ON ac.b_id = b.id
-        LEFT JOIN (
-            SELECT CAST(ei.branch_id AS UNSIGNED) as b_id,
-                   SUM({ei_gross_expr}) as gross_ei
-            FROM embryology_invoice ei
-            WHERE {ei_where_sql}
-            GROUP BY b_id
-        ) ei ON ei.b_id = b.id
-        LEFT JOIN (
-            SELECT CAST(mpi.branch_id AS UNSIGNED) as b_id,
-                   COALESCE(SUM({ph_sales_metric}), 0) as gross_ph
-            FROM medication_patients_invoices mpi
-            WHERE {ph_where_sql}
-            GROUP BY b_id
-        ) ph ON ph.b_id = b.id
-        LEFT JOIN (
-            SELECT CAST(branch_id AS UNSIGNED) as b_id,
-                   COALESCE(SUM({pr_sales_metric}), 0) as return_ph
-            FROM medication_sales_credit msc
-            WHERE {pr_where_sql}
-            GROUP BY b_id
-        ) pr ON pr.b_id = b.id
-        HAVING (gross_hc > 0 OR gross_ph > 0 OR return_hc > 0 OR return_ph > 0)
-        ORDER BY (gross_hc + gross_ph) DESC
-    """
-    combined_params = hc_params + ac_params + ei_params + ph_params + pr_params
-    cursor.execute(branch_stats_sql, combined_params)
-    branch_rows = cursor.fetchall()
+            CAST(a.branch_id AS UNSIGNED) as b_id,
+            COALESCE(SUM(ac.usg), 0) as usg,
+            COALESCE(SUM(CASE WHEN a.category_id IN (1, 2, 3, 4, 5, 6, 17, 18, 22) THEN ac.total - COALESCE(ac.usg, 0) ELSE 0 END), 0) as opd
+        FROM appointments a
+        JOIN appointment_charges ac ON ac.appointment_id = a.id
+        WHERE {" AND ".join(b_appt_where)}
+        GROUP BY b_id
+    """, b_appt_params)
+    b_appt_data = {r[0]: (float(r[1] or 0), float(r[2] or 0)) for r in cursor.fetchall()}
+
+    # 2. Indoor Deposits (H.Inj + IUI + IVF + IPD Deposits + Pediatric Deposits + Medicare Deposits + Healthcare Return)
+    b_dep_where = ["1=1"]
+    b_dep_params = []
+    if start_date:
+        b_dep_where.append("d.created_at >= %s")
+        b_dep_params.append(f"{start_date} 00:00:00")
+    if end_date:
+        b_dep_where.append("d.created_at <= %s")
+        b_dep_params.append(f"{end_date} 23:59:59")
+    if branch_id:
+        b_dep_where.append("d.branch_id = %s")
+        b_dep_params.append(branch_id)
+    if payment_type:
+        b_dep_where.append("d.payment_type = %s")
+        b_dep_params.append(payment_type)
+    elif exclude_cash:
+        b_dep_where.append("d.payment_type != 2")
+
+    cursor.execute(f"""
+        SELECT 
+            CAST(d.branch_id AS UNSIGNED) as b_id,
+            COALESCE(SUM(CASE WHEN d.case_type = 'Credit' AND d.charge_type = 1 THEN d.amount ELSE 0 END), 0) as hinj,
+            COALESCE(SUM(CASE WHEN d.case_type = 'Credit' AND d.charge_type = 3 THEN d.amount ELSE 0 END), 0) as iui,
+            COALESCE(SUM(CASE WHEN d.case_type = 'Credit' AND d.charge_type = 2 THEN d.amount ELSE 0 END), 0) as ivf,
+            COALESCE(SUM(CASE WHEN d.case_type = 'Credit' AND d.charge_type = 4 AND (d.is_medicare IS NULL OR d.is_medicare = 0) AND (d.is_pediatric IS NULL OR d.is_pediatric = 0) THEN d.amount ELSE 0 END), 0) as ipd_dep,
+            COALESCE(SUM(CASE WHEN d.case_type = 'Credit' AND d.charge_type = 4 AND d.is_pediatric = 1 THEN d.amount ELSE 0 END), 0) as ped_dep,
+            COALESCE(SUM(CASE WHEN d.case_type = 'Credit' AND d.charge_type = 4 AND d.is_medicare = 1 THEN d.amount ELSE 0 END), 0) as med_dep,
+            COALESCE(SUM(CASE WHEN d.case_type = 'Debit' THEN d.amount ELSE 0 END), 0) as return_hc
+        FROM indoor_deposits d
+        WHERE {" AND ".join(b_dep_where)}
+        GROUP BY b_id
+    """, b_dep_params)
+    b_dep_data = {r[0]: (float(r[1] or 0), float(r[2] or 0), float(r[3] or 0), float(r[4] or 0), float(r[5] or 0), float(r[6] or 0), float(r[7] or 0)) for r in cursor.fetchall()}
+
+    # 3. Indoor Invoices (IPD Invoices + Pediatric Invoices + Medicare Invoices)
+    b_inv_where = ["ib.is_final_invoice = 1", "ib.final_invoice_date IS NOT NULL"]
+    b_inv_params = []
+    if start_date:
+        b_inv_where.append("ib.final_invoice_date >= %s")
+        b_inv_params.append(f"{start_date} 00:00:00")
+    if end_date:
+        b_inv_where.append("ib.final_invoice_date <= %s")
+        b_inv_params.append(f"{end_date} 23:59:59")
+    if branch_id:
+        b_inv_where.append("ib.branch_id = %s")
+        b_inv_params.append(branch_id)
+    if payment_type:
+        b_inv_where.append("ii.payment_mode = %s")
+        b_inv_params.append(payment_type)
+    elif exclude_cash:
+        b_inv_where.append("ii.payment_mode != 2")
+
+    cursor.execute(f"""
+        SELECT 
+            CAST(ib.branch_id AS UNSIGNED) as b_id,
+            COALESCE(SUM(CASE WHEN (ib.is_medicare_patient IS NULL OR ib.is_medicare_patient = 0) AND (ib.is_pediatric_patient IS NULL OR ib.is_pediatric_patient = 0) THEN ii.grand_total_amt ELSE 0 END), 0) as ipd_inv,
+            COALESCE(SUM(CASE WHEN ib.is_pediatric_patient = 1 THEN ii.grand_total_amt ELSE 0 END), 0) as ped_inv,
+            COALESCE(SUM(CASE WHEN ib.is_medicare_patient = 1 THEN ii.grand_total_amt ELSE 0 END), 0) as med_inv
+        FROM indoor_books ib
+        JOIN indoor_invoices ii ON ii.booking_id = ib.id
+        WHERE {" AND ".join(b_inv_where)}
+        GROUP BY b_id
+    """, b_inv_params)
+    b_inv_data = {r[0]: (float(r[1] or 0), float(r[2] or 0), float(r[3] or 0)) for r in cursor.fetchall()}
+
+    # 4. Income Manager (O.Income + Pediatric OPD + Medicare OPD)
+    b_im_where = ["ec.type = 1", "ec.status = 1"]
+    b_im_params = []
+    if start_date:
+        b_im_where.append("DATE(im.date) >= %s")
+        b_im_params.append(start_date)
+    if end_date:
+        b_im_where.append("DATE(im.date) <= %s")
+        b_im_params.append(end_date)
+    if branch_id:
+        b_im_where.append("(im.branch_id = %s OR im.branch_id = %s)")
+        b_im_params.extend([branch_id, str(branch_id)])
+    if exclude_cash:
+        b_im_where.append("im.payment_method != 1")
+
+    cursor.execute(f"""
+        SELECT 
+            CAST(im.branch_id AS UNSIGNED) as b_id,
+            COALESCE(SUM(CASE WHEN (ec.is_medicare IS NULL OR ec.is_medicare = 0) AND (ec.is_pediatric IS NULL OR ec.is_pediatric = 0) THEN im.amount ELSE 0 END), 0) as oinc,
+            COALESCE(SUM(CASE WHEN ec.is_pediatric = 1 THEN im.amount ELSE 0 END), 0) as ped_opd,
+            COALESCE(SUM(CASE WHEN ec.is_medicare = 1 THEN im.amount ELSE 0 END), 0) as med_opd
+        FROM income_manager im
+        JOIN expance_category ec ON ec.id = im.income_category
+        WHERE {" AND ".join(b_im_where)}
+        GROUP BY b_id
+    """, b_im_params)
+    b_im_data = {r[0]: (float(r[1] or 0), float(r[2] or 0), float(r[3] or 0)) for r in cursor.fetchall()}
+
+    # 5. Medicine Income: medicine_given_history
+    b_med_where = []
+    b_med_params = []
+    if start_date:
+        b_med_where.append("DATE(given_date) >= %s")
+        b_med_params.append(start_date)
+    if end_date:
+        b_med_where.append("DATE(given_date) <= %s")
+        b_med_params.append(end_date)
+    if branch_id:
+        b_med_where.append("branch_id = %s")
+        b_med_params.append(branch_id)
+    b_med_sql = f"WHERE {' AND '.join(b_med_where)}" if b_med_where else ""
+
+    cursor.execute(f"""
+        SELECT CAST(branch_id AS UNSIGNED) as b_id, COALESCE(SUM(total_amount), 0)
+        FROM medicine_given_history
+        {b_med_sql}
+        GROUP BY b_id
+    """, b_med_params)
+    b_med_data = {r[0]: float(r[1] or 0) for r in cursor.fetchall()}
+
+    # 6. Embryology Income: embryology_invoice
+    b_ei_where = [
+        f"{ei_date_col} IS NOT NULL",
+        "(ei.payment_cash + ei.payment_upi + ei.payment_cheque + ei.payment_neft + ei.payment_card_swipe) > 0"
+    ]
+    b_ei_params = []
+    if start_date:
+        b_ei_where.append(f"{ei_date_col} >= %s")
+        b_ei_params.append(start_date)
+    if end_date:
+        b_ei_where.append(f"{ei_date_col} <= %s")
+        b_ei_params.append(end_date)
+    if branch_id:
+        b_ei_where.append("ei.branch_id = %s")
+        b_ei_params.append(branch_id)
+    if exclude_cash:
+        b_ei_where.append("(ei.payment_upi + ei.payment_cheque + ei.payment_neft + ei.payment_card_swipe) > 0")
+
+    cursor.execute(f"""
+        SELECT CAST(ei.branch_id AS UNSIGNED) as b_id, COALESCE(SUM({ei_gross_expr}), 0)
+        FROM embryology_invoice ei
+        WHERE {" AND ".join(b_ei_where)}
+        GROUP BY b_id
+    """, b_ei_params)
+    b_emb_data = {r[0]: float(r[1] or 0) for r in cursor.fetchall()}
+
+    # 7. Pharmacy Gross Sales & Returns
+    cursor.execute(f"""
+        SELECT CAST(mpi.branch_id AS UNSIGNED) as b_id, COALESCE(SUM({ph_sales_metric}), 0) as gross_ph
+        FROM medication_patients_invoices mpi
+        WHERE {ph_where_sql}
+        GROUP BY b_id
+    """, ph_params)
+    b_ph_data = {r[0]: float(r[1] or 0) for r in cursor.fetchall()}
+
+    cursor.execute(f"""
+        SELECT CAST(branch_id AS UNSIGNED) as b_id, COALESCE(SUM({pr_sales_metric}), 0) as return_ph
+        FROM medication_sales_credit msc
+        WHERE {pr_where_sql}
+        GROUP BY b_id
+    """, pr_params)
+    b_pr_data = {r[0]: float(r[1] or 0) for r in cursor.fetchall()}
+
+    # Consolidate all branches across all clinical streams and pharmacy
+    branch_name_map = {b["id"]: b["name"] for b in branches}
+    active_bids = set(
+        list(b_appt_data.keys()) + list(b_dep_data.keys()) + list(b_inv_data.keys()) +
+        list(b_im_data.keys()) + list(b_med_data.keys()) + list(b_emb_data.keys()) +
+        list(b_ph_data.keys()) + list(b_pr_data.keys())
+    )
+    if branch_id:
+        try:
+            active_bids = {int(branch_id)}
+        except ValueError:
+            pass
+
     branch_breakdown = []
-    for r in branch_rows:
-        b_id, b_name, b_ghc, b_rhc, b_gph, b_rph = r[0], r[1], float(r[2] or 0), float(r[3] or 0), float(r[4] or 0), float(r[5] or 0)
-        b_gross = b_ghc + b_gph
-        b_ret = b_rhc + b_rph
-        b_net = b_gross - b_ret
-        branch_breakdown.append({
-            "branch_id": b_id,
-            "branch_name": b_name,
-            "net_collection": round(b_net, 2),
-            "total_collection": round(b_gross, 2),
-            "healthcare_collection": round(b_ghc, 2),
-            "pharmacy_collection": round(b_gph, 2),
-            "payment_return": round(b_ret, 2),
-            "pct_of_total": round((b_net / net_collection * 100), 1) if net_collection > 0 else 0
-        })
+    for bid in active_bids:
+        b_usg, b_opd = b_appt_data.get(bid, (0.0, 0.0))
+        b_hinj, b_iui, b_ivf, b_ipd_dep, b_ped_dep, b_med_dep, b_rhc = b_dep_data.get(bid, (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
+        b_ipd_inv, b_ped_inv, b_med_inv = b_inv_data.get(bid, (0.0, 0.0, 0.0))
+        b_oinc, b_ped_opd, b_med_opd = b_im_data.get(bid, (0.0, 0.0, 0.0))
+        b_med = b_med_data.get(bid, 0.0)
+        b_emb = b_emb_data.get(bid, 0.0)
+
+        # Exact Total Healthcare = sum of all 11 streams for this branch
+        b_ghc = round(
+            b_usg + b_hinj + b_iui + b_ivf + b_opd +
+            (b_ipd_inv + b_ipd_dep) + b_oinc + b_med + b_emb +
+            (b_ped_opd + b_ped_inv + b_ped_dep) +
+            (b_med_opd + b_med_inv + b_med_dep),
+            2
+        )
+        b_gph = round(b_ph_data.get(bid, 0.0), 2)
+        b_rph = round(b_pr_data.get(bid, 0.0), 2)
+
+        b_gross = round(b_ghc + b_gph, 2)
+        b_ret = round(b_rhc + b_rph, 2)
+        b_net = round(b_gross - b_ret, 2)
+
+        if b_gross > 0 or b_ret > 0:
+            branch_breakdown.append({
+                "branch_id": bid,
+                "branch_name": branch_name_map.get(bid, f"Branch {bid}"),
+                "net_collection": b_net,
+                "total_collection": b_gross,
+                "healthcare_collection": b_ghc,
+                "pharmacy_collection": b_gph,
+                "payment_return": b_ret,
+                "pct_of_total": round((b_net / net_collection * 100), 1) if net_collection > 0 else 0
+            })
+
+    branch_breakdown.sort(key=lambda x: x["total_collection"], reverse=True)
 
     # --- RECENT TRANSACTIONS LEDGER ---
     records = []
