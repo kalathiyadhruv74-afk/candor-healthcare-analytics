@@ -1549,14 +1549,6 @@
                         <option value="0">With GST (Total Amount)</option>
                     </select>
                 </div>
-                <div class="filter-group" style="flex: 0 0 auto;">
-                    <label class="filter-label">Cash Entries</label>
-                    <input type="hidden" id="filterExcludeCash" value="0">
-                    <button type="button" id="btnToggleCash" class="btn-toggle-cash" onclick="toggleCashFilter()">
-                        <span class="cash-indicator-dot"></span>
-                        <span id="cashToggleText">Exclude Cash (Digital Only)</span>
-                    </button>
-                </div>
                 <button type="button" class="btn-filter" onclick="applyFilters()">Apply Filters</button>
                 <button type="button" class="btn-reset" onclick="resetFilters()">Reset</button>
             </div>
@@ -1952,27 +1944,6 @@
             if (loader) loader.classList.remove('active');
         }
 
-        function toggleCashFilter() {
-            const input = document.getElementById('filterExcludeCash');
-            const current = input.value === '1';
-            input.value = current ? '0' : '1';
-            updateCashButtonUI(!current);
-            fetchCollectionData();
-        }
-
-        function updateCashButtonUI(isExcluded) {
-            const btn = document.getElementById('btnToggleCash');
-            const text = document.getElementById('cashToggleText');
-            if (!btn || !text) return;
-            if (isExcluded) {
-                btn.classList.add('active');
-                text.textContent = 'Cash Excluded (Digital Only)';
-            } else {
-                btn.classList.remove('active');
-                text.textContent = 'Exclude Cash (Digital Only)';
-            }
-        }
-
         async function fetchCollectionData() {
             showLoader();
 
@@ -1981,7 +1952,6 @@
             const branchId = document.getElementById('filterBranch').value;
             const source = document.getElementById('filterSource').value;
             const excludeGst = document.getElementById('filterGst').value;
-            const excludeCash = document.getElementById('filterExcludeCash').value;
 
             const params = new URLSearchParams();
             if (startDate) params.set('start_date', startDate);
@@ -1989,7 +1959,6 @@
             if (branchId) params.set('branch_id', branchId);
             if (source) params.set('source', source);
             params.set('exclude_gst', excludeGst);
-            params.set('exclude_cash', excludeCash);
 
             try {
                 const response = await fetch(`/api/collection-analytics/?${params.toString()}`);
@@ -2022,15 +1991,11 @@
             const s = data.summary;
             populateBranches(data.branches, data.filters.branch_id);
 
-            // Update GST & Cash labels and badges
+            // Update GST labels and badges
             const isExcludeGst = (data.exclude_gst === 1 || data.exclude_gst === '1' || (data.filters && data.filters.exclude_gst === 1));
-            const isExcludeCash = (data.filters && data.filters.exclude_cash === 1);
 
             let gstBadgeText = isExcludeGst ? '(Without GST)' : '(With GST)';
-            if (isExcludeCash) gstBadgeText += ' [Digital Only]';
-
             let kpiBadgeText = isExcludeGst ? 'Without GST' : 'With GST';
-            if (isExcludeCash) kpiBadgeText += ' • Digital Only';
 
             const heroBadge = document.getElementById('heroGstBadge');
             if (heroBadge) heroBadge.textContent = gstBadgeText;
@@ -2342,8 +2307,7 @@
             document.getElementById('filterEndDate').value = '';
             document.getElementById('filterBranch').value = '';
             document.getElementById('filterSource').value = '';
-            document.getElementById('filterExcludeCash').value = '0';
-            updateCashButtonUI(false);
+            document.getElementById('filterGst').value = '1';
             fetchCollectionData();
         }
 
