@@ -1636,7 +1636,7 @@ def history_api(request):
 
 
 
-@with_db_safety(cache_prefix="opd_v4", cache_ttl=30, heavy=True)
+@with_db_safety(cache_prefix="opd_v5", cache_ttl=30, heavy=True)
 def opd_analytics_api(request):
     """
     Live OPD Report Analytics API:
@@ -1727,7 +1727,10 @@ def opd_analytics_api(request):
     from collections import defaultdict
     from datetime import datetime, timedelta
 
-    ivf_categories = {1, 2, 11, 14, 50}
+    # Only donor-specific IVF categories should skip is_donor patients.
+    # Regular NEW/OLD IVF appointments must still count even if patient.is_donor=1
+    # (Candor OPD lists them under OLD IVF / NEW IVF).
+    ivf_donor_categories = {11, 14, 50}
     core_categories = {1, 2, 3, 4, 5, 6, 17, 18}
 
     def _norm_date(value):
@@ -1752,8 +1755,8 @@ def opd_analytics_api(request):
 
     for r in rows:
         aid, pid, adate, atime, arr_time, is_done, bid, cid = r
-        # Exclude IVF donor visits
-        if cid in ivf_categories and pid in donor_pids:
+        # Exclude only IVF-D category donor visits, not regular NEW/OLD IVF
+        if cid in ivf_donor_categories and pid in donor_pids:
             continue
 
         is_done_bool = (int(is_done or 0) == 1)
