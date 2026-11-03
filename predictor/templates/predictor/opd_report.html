@@ -1161,8 +1161,8 @@
                     <label>Attendance Status</label>
                     <select id="statusSelect">
                         <option value="">All Status (Attended + Not Attended)</option>
-                        <option value="attended">Attended OPD (Arrival Time set)</option>
-                        <option value="not_attended">Not Attended / No-Show (No Arrival)</option>
+                        <option value="attended">Attended OPD (is_done = 1)</option>
+                        <option value="not_attended">Not Attended / No-Show (is_done = 0)</option>
                     </select>
                 </div>
             </div>
@@ -1201,7 +1201,7 @@
                 <div class="kpi-info">
                     <h3>Attended OPD</h3>
                     <div class="kpi-value" id="kpiAttendedOpd">-</div>
-                    <div class="kpi-sub"><span id="kpiAttendanceRate">0%</span> Attendance Ratio (patient arrived)</div>
+                    <div class="kpi-sub"><span id="kpiAttendanceRate">0%</span> Attendance Ratio (is_done = 1)</div>
                 </div>
                 <div class="kpi-icon">
                     <i class="fa-solid fa-user-check"></i>
