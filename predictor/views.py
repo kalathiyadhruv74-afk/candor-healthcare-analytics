@@ -1636,7 +1636,7 @@ def history_api(request):
 
 
 
-@with_db_safety(cache_prefix="opd_v3", cache_ttl=30, heavy=True)
+@with_db_safety(cache_prefix="opd_v4", cache_ttl=30, heavy=True)
 def opd_analytics_api(request):
     """
     Live OPD Report Analytics API:
@@ -1672,8 +1672,20 @@ def opd_analytics_api(request):
 
     cursor = connection.cursor()
 
-    # Include all non-deleted appointments (no-shows with null time/arrival must still appear)
-    appt_where = ['a.deleted_at IS NULL']
+    # Non-deleted appointments only.
+    # Hide untouched auto follow-up placeholders (no time, no arrival, not done,
+    # and never updated on/after the appointment day) — Candor OPD hides these too.
+    # Real no-shows that staff touched that day (remark/call/update) still appear.
+    appt_where = [
+        'a.deleted_at IS NULL',
+        """NOT (
+            a.time IS NULL
+            AND a.arrival_time IS NULL
+            AND a.is_done = 0
+            AND (a.remark IS NULL OR TRIM(a.remark) = '')
+            AND DATE(a.updated_at) < a.date
+        )""",
+    ]
     appt_params = []
     if start_date:
         appt_where.append('a.date >= %s')
