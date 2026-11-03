@@ -1713,13 +1713,31 @@ def opd_analytics_api(request):
     cursor.execute(query, appt_params)
     rows = cursor.fetchall()
 
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+
     ivf_categories = {1, 2, 11, 14, 50}
     core_categories = {1, 2, 3, 4, 5, 6, 17, 18}
 
-    daily_patient_visits = {}
-    daily_category_visits = {}
-    daily_branch_visits = {}
+    def _norm_date(value):
+        if value is None:
+            return None
+        if hasattr(value, "strftime"):
+            return value.strftime("%Y-%m-%d")
+        s = str(value).strip()
+        return s[:10] if len(s) >= 10 else s
+
+    # Count every valid appointment (not unique-patient collapse) for proper daily totals
+    cat_stats = defaultdict(lambda: {'total': 0, 'attended': 0, 'not_attended': 0})
+    br_stats = defaultdict(lambda: {'total': 0, 'attended': 0, 'not_attended': 0})
+    daily_stats = defaultdict(lambda: {'total': 0, 'attended': 0, 'not_attended': 0})
     filtered_appts_for_patient_table = []
+
+    total_appts = 0
+    attended_count = 0
+    not_attended_count = 0
+    core_cat_total = 0
+    core_cat_attended = 0
 
     for r in rows:
         aid, pid, adate, atime, arr_time, is_done, bid, cid = r
@@ -1727,63 +1745,52 @@ def opd_analytics_api(request):
         if cid in ivf_categories and pid in donor_pids:
             continue
 
-        is_done_bool = (is_done == 1)
-        adate_str = str(adate)
+        is_done_bool = (int(is_done or 0) == 1)
+        adate_str = _norm_date(adate)
+        if not adate_str:
+            continue
 
-        # Deduplicate per patient per date
-        pd_key = (pid, adate_str)
-        if pd_key not in daily_patient_visits:
-            daily_patient_visits[pd_key] = {
-                'id': aid,
-                'pid': pid,
-                'date': adate_str,
-                'time': str(atime) if atime else '-',
-                'arrival_time': str(arr_time) if arr_time else '-',
-                'is_done': 1 if is_done_bool else 0,
-                'bid': bid,
-                'cid': cid,
-                'is_core': 1 if cid in core_categories else 0
-            }
-            filtered_appts_for_patient_table.append(daily_patient_visits[pd_key])
+        bid = int(bid or 0)
+        cid = int(cid or 0)
+        is_core = cid in core_categories
+
+        total_appts += 1
+        if is_done_bool:
+            attended_count += 1
         else:
+            not_attended_count += 1
+
+        if is_core:
+            core_cat_total += 1
             if is_done_bool:
-                daily_patient_visits[pd_key]['is_done'] = 1
-            if cid in core_categories:
-                daily_patient_visits[pd_key]['is_core'] = 1
+                core_cat_attended += 1
 
-        # Deduplicate per patient per date per category
-        cat_key = (pid, adate_str, cid)
-        if cat_key not in daily_category_visits:
-            daily_category_visits[cat_key] = 1 if is_done_bool else 0
-        elif is_done_bool:
-            daily_category_visits[cat_key] = 1
+        cat_stats[cid]['total'] += 1
+        br_stats[bid]['total'] += 1
+        daily_stats[adate_str]['total'] += 1
+        if is_done_bool:
+            cat_stats[cid]['attended'] += 1
+            br_stats[bid]['attended'] += 1
+            daily_stats[adate_str]['attended'] += 1
+        else:
+            cat_stats[cid]['not_attended'] += 1
+            br_stats[bid]['not_attended'] += 1
+            daily_stats[adate_str]['not_attended'] += 1
 
-        # Deduplicate per patient per date per branch
-        br_key = (pid, adate_str, bid)
-        if br_key not in daily_branch_visits:
-            daily_branch_visits[br_key] = 1 if is_done_bool else 0
-        elif is_done_bool:
-            daily_branch_visits[br_key] = 1
+        filtered_appts_for_patient_table.append({
+            'id': aid,
+            'pid': pid,
+            'date': adate_str,
+            'time': str(atime) if atime else '-',
+            'arrival_time': str(arr_time) if arr_time else '-',
+            'is_done': 1 if is_done_bool else 0,
+            'bid': bid,
+            'cid': cid,
+        })
 
-    # Summary metrics
-    total_appts = len(daily_patient_visits)
-    attended_count = sum(1 for v in daily_patient_visits.values() if v['is_done'] == 1)
-    not_attended_count = total_appts - attended_count
-    core_cat_total = sum(1 for v in daily_patient_visits.values() if v['is_core'] == 1)
-    core_cat_attended = sum(1 for v in daily_patient_visits.values() if v['is_core'] == 1 and v['is_done'] == 1)
     core_cat_not_attended = core_cat_total - core_cat_attended
     attendance_rate = round((attended_count / total_appts * 100), 1) if total_appts > 0 else 0
     no_show_rate = round((not_attended_count / total_appts * 100), 1) if total_appts > 0 else 0
-
-    # Category breakdown
-    from collections import defaultdict
-    cat_stats = defaultdict(lambda: {'total': 0, 'attended': 0, 'not_attended': 0})
-    for (pid, d, cid), done in daily_category_visits.items():
-        cat_stats[cid]['total'] += 1
-        if done == 1:
-            cat_stats[cid]['attended'] += 1
-        else:
-            cat_stats[cid]['not_attended'] += 1
 
     categories = []
     for cid, st in sorted(cat_stats.items(), key=lambda x: x[1]['total'], reverse=True):
@@ -1800,15 +1807,6 @@ def opd_analytics_api(request):
             'no_show_rate': round(c_not / c_tot * 100, 1) if c_tot > 0 else 0,
         })
 
-    # Branch breakdown
-    br_stats = defaultdict(lambda: {'total': 0, 'attended': 0, 'not_attended': 0})
-    for (pid, d, bid), done in daily_branch_visits.items():
-        br_stats[bid]['total'] += 1
-        if done == 1:
-            br_stats[bid]['attended'] += 1
-        else:
-            br_stats[bid]['not_attended'] += 1
-
     branches = []
     for bid, st in sorted(br_stats.items(), key=lambda x: x[1]['total'], reverse=True):
         b_tot = st['total']
@@ -1824,24 +1822,44 @@ def opd_analytics_api(request):
             'no_show_rate': round(b_not / b_tot * 100, 1) if b_tot > 0 else 0,
         })
 
-    # Daily trend
-    daily_stats = defaultdict(lambda: {'total': 0, 'attended': 0, 'not_attended': 0})
-    for v in daily_patient_visits.values():
-        d = v['date']
-        daily_stats[d]['total'] += 1
-        if v['is_done'] == 1:
-            daily_stats[d]['attended'] += 1
-        else:
-            daily_stats[d]['not_attended'] += 1
-
+    # Fill every calendar day in the selected range so daily report is complete
     daily_trend = []
-    for d in sorted(daily_stats.keys()):
-        daily_trend.append({
-            'date': d,
-            'total_appointments': daily_stats[d]['total'],
-            'attended': daily_stats[d]['attended'],
-            'not_attended': daily_stats[d]['not_attended']
-        })
+    try:
+        start_d = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
+        if end_d < start_d:
+            start_d, end_d = end_d, start_d
+        cur = start_d
+        # Cap fill window to avoid huge empty ranges
+        max_days = 92
+        day_count = 0
+        while cur <= end_d and day_count < max_days:
+            d = cur.strftime("%Y-%m-%d")
+            st = daily_stats.get(d, {'total': 0, 'attended': 0, 'not_attended': 0})
+            tot = st['total']
+            att = st['attended']
+            not_att = st['not_attended']
+            daily_trend.append({
+                'date': d,
+                'total_appointments': tot,
+                'attended': att,
+                'not_attended': not_att,
+                'attendance_rate': round((att / tot * 100), 1) if tot > 0 else 0,
+            })
+            cur += timedelta(days=1)
+            day_count += 1
+    except ValueError:
+        for d in sorted(daily_stats.keys()):
+            st = daily_stats[d]
+            tot = st['total']
+            att = st['attended']
+            daily_trend.append({
+                'date': d,
+                'total_appointments': tot,
+                'attended': att,
+                'not_attended': st['not_attended'],
+                'attendance_rate': round((att / tot * 100), 1) if tot > 0 else 0,
+            })
 
     # Fetch patient details for visible records (with search support)
     patient_map = {}

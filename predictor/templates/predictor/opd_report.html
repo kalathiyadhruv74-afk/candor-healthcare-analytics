@@ -1243,6 +1243,33 @@
             </div>
         </div>
 
+        <!-- Day-wise Appointments vs Attended -->
+        <div class="section-card" style="width: 100%;">
+            <div class="section-header">
+                <h2>
+                    <i class="fa-solid fa-calendar-day" style="color: var(--primary);"></i>
+                    Daily Appointment Report
+                </h2>
+                <span class="badge-pill" id="dailyCountPill">0 Days</span>
+            </div>
+            <div class="table-responsive">
+                <table id="dailyTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Total Appointments</th>
+                            <th>Attended OPD</th>
+                            <th>Not Attended</th>
+                            <th>Attendance Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dailyTableBody">
+                        <tr><td colspan="5" style="text-align: center; padding: 2rem;">Loading daily data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Category Wise Report Table -->
         <div class="section-card">
             <div class="section-header">
@@ -1468,10 +1495,11 @@
                 if (data.status === "success") {
                     updateKPIs(data.summary, data.categories);
                     populateFilters(data.filters);
+                    renderDailyTable(data.daily_trend || []);
                     renderCategoryTable(data.categories);
                     renderBranchTable(data.branches);
                     renderPatientTable(data.patients);
-                    renderTrendChart(data.daily_trend);
+                    renderTrendChart(data.daily_trend || []);
                     renderPieChart(data.summary);
                 } else {
                     alert("Error loading OPD report: " + (data.message || "Unknown error"));
@@ -1550,6 +1578,59 @@
                     }
                 });
             }
+        }
+
+        function renderDailyTable(trend) {
+            const tbody = document.getElementById("dailyTableBody");
+            const pill = document.getElementById("dailyCountPill");
+            if (!tbody) return;
+
+            const rows = trend || [];
+            if (pill) pill.innerText = `${rows.length} Days`;
+
+            if (!rows.length) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">No daily appointment data for this period.</td></tr>`;
+                return;
+            }
+
+            let html = "";
+            let sumTotal = 0, sumAtt = 0, sumNot = 0;
+            rows.forEach(t => {
+                const tot = Number(t.total_appointments || 0);
+                const att = Number(t.attended || 0);
+                const notAtt = Number(t.not_attended || 0);
+                const rate = tot > 0 ? Number(t.attendance_rate != null ? t.attendance_rate : ((att / tot) * 100).toFixed(1)) : 0;
+                sumTotal += tot;
+                sumAtt += att;
+                sumNot += notAtt;
+                html += `
+                    <tr>
+                        <td><strong>${t.date}</strong></td>
+                        <td><strong>${tot.toLocaleString()}</strong></td>
+                        <td style="color: var(--emerald); font-weight: 700;">${att.toLocaleString()}</td>
+                        <td style="color: var(--rose); font-weight: 700;">${notAtt.toLocaleString()}</td>
+                        <td>
+                            <div class="progress-bar-wrap">
+                                <div class="progress-bar-bg">
+                                    <div class="progress-bar-fill" style="width: ${rate}%;"></div>
+                                </div>
+                                <span style="font-weight: 700; font-size: 0.8rem;">${rate}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            const totalRate = sumTotal > 0 ? ((sumAtt / sumTotal) * 100).toFixed(1) : 0;
+            html += `
+                <tr style="background: var(--slate-50); border-top: 2px solid var(--slate-200);">
+                    <td><strong>TOTAL</strong></td>
+                    <td><strong>${sumTotal.toLocaleString()}</strong></td>
+                    <td style="color: var(--emerald); font-weight: 800;">${sumAtt.toLocaleString()}</td>
+                    <td style="color: var(--rose); font-weight: 800;">${sumNot.toLocaleString()}</td>
+                    <td><strong>${totalRate}%</strong></td>
+                </tr>
+            `;
+            tbody.innerHTML = html;
         }
 
         function renderCategoryTable(categories) {
