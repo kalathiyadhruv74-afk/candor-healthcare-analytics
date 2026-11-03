@@ -1636,7 +1636,7 @@ def history_api(request):
 
 
 
-@with_db_safety(cache_prefix="opd_v6", cache_ttl=30, heavy=True)
+@with_db_safety(cache_prefix="opd_v7", cache_ttl=30, heavy=True)
 def opd_analytics_api(request):
     """
     Live OPD Report Analytics API:
@@ -1665,9 +1665,14 @@ def opd_analytics_api(request):
 
     # Metadata from short TTL cache (avoids extra MySQL hits per concurrent user)
     branch_options = get_branch_options()
-    category_options = get_category_options()
+    # Hide USG categories from OPD filters/lists
+    _usg_ids = {10, 13, 54}
+    category_options = [c for c in get_category_options() if int(c.get('id') or 0) not in _usg_ids]
     branch_dict = {b['id']: b['name'] for b in branch_options}
     cat_dict = {c['id']: c['name'] for c in category_options}
+    # Keep full category names for any leftover rows
+    for c in get_category_options():
+        cat_dict.setdefault(c['id'], c['name'])
     donor_pids = get_donor_patient_ids()
 
     cursor = connection.cursor()
@@ -1704,6 +1709,14 @@ def opd_analytics_api(request):
     elif status_filter == 'not_attended':
         appt_where.append('a.is_done = 0')
 
+    # USG appointments are not part of OPD report (NEW USG / OLD USG / USG CHARGE)
+    usg_categories = {10, 13, 54}
+    appt_where.append(
+        "CAST(a.category_id AS UNSIGNED) NOT IN ({})".format(
+            ",".join(str(x) for x in sorted(usg_categories))
+        )
+    )
+
     appt_where_sql = ' AND '.join(appt_where)
 
     # Fast indexed scan on appointments
@@ -1730,6 +1743,8 @@ def opd_analytics_api(request):
     # Exclude donor patients from all IVF-related categories (NEW/OLD IVF + IVF-D)
     ivf_categories = {1, 2, 11, 14, 50}
     core_categories = {1, 2, 3, 4, 5, 6, 17, 18}
+    # usg_categories already applied in SQL; keep for app-side safety
+    usg_skip = {10, 13, 54}
 
     def _norm_date(value):
         if value is None:
@@ -1755,6 +1770,8 @@ def opd_analytics_api(request):
         aid, pid, adate, atime, arr_time, is_done, bid, cid = r
         # Exclude IVF donor visits
         if cid in ivf_categories and pid in donor_pids:
+            continue
+        if cid in usg_skip:
             continue
 
         is_done_bool = (int(is_done or 0) == 1)
