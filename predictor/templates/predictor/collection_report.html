@@ -2057,7 +2057,10 @@
             document.getElementById('kpiHealthcareShare').textContent = `${hcShare}% of Gross`;
             document.getElementById('kpiPharmacyShare').textContent = `${phShare}% of Gross`;
             document.getElementById('kpiHealthcareCount').textContent = `${(s.transaction_counts.healthcare_credits || 0).toLocaleString('en-IN')} Deposits`;
-            document.getElementById('kpiPharmacyCount').textContent = `${(s.transaction_counts.pharmacy_payments || 0).toLocaleString('en-IN')} Invoices`;
+            const phSales = Number(s.pharmacy_sales != null ? s.pharmacy_sales : s.total_pharmacy_collection) || 0;
+            const phRet = Number(s.pharmacy_return) || 0;
+            document.getElementById('kpiPharmacyCount').textContent =
+                `Sales ${formatINR(phSales)} − Returns ${formatINR(phRet)}`;
             document.getElementById('kpiReturnBreakdown').textContent = `HC: ${formatINR(s.healthcare_return)} | Pharm: ${formatINR(s.pharmacy_return)}`;
 
             // Payment modes

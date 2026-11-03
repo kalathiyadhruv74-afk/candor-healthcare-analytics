@@ -847,9 +847,13 @@ def build_collection_report(
         2,
     )
     total_healthcare_collection = total_income_amount
-    total_pharmacy_collection = round(ph_gross, 2)
-    total_payment_return = round(hc_return + pr_return, 2)
-    total_gross_collection = round(total_healthcare_collection + total_pharmacy_collection, 2)
+    # Pharmacy KPI = Sale Register − Sale Return Register (net)
+    pharmacy_sales_gross = round(ph_gross, 2)
+    pharmacy_return_amount = round(pr_return, 2)
+    total_pharmacy_collection = round(pharmacy_sales_gross - pharmacy_return_amount, 2)
+    total_payment_return = round(hc_return + pharmacy_return_amount, 2)
+    # Gross total still uses sale-register pharmacy (returns stay in PAYMENT RETURN)
+    total_gross_collection = round(total_healthcare_collection + pharmacy_sales_gross, 2)
     net_collection = round(total_gross_collection - total_payment_return, 2)
 
     combined_hc_cash = round(hc_cash + ac_cash + ei_cash + im_cash + ped_cash + medicare_cash, 2)
@@ -920,6 +924,7 @@ def build_collection_report(
         )
         b_gph = round(b_ph.get(bid, 0.0), 2)
         b_rph = round(b_pr.get(bid, 0.0), 2)
+        b_ph_net = round(b_gph - b_rph, 2)
         b_gross = round(b_ghc + b_gph, 2)
         b_ret = round(b_rhc + b_rph, 2)
         b_net = round(b_gross - b_ret, 2)
@@ -931,7 +936,8 @@ def build_collection_report(
                     "net_collection": b_net,
                     "total_collection": b_gross,
                     "healthcare_collection": b_ghc,
-                    "pharmacy_collection": b_gph,
+                    "pharmacy_collection": b_ph_net,
+                    "pharmacy_sales": b_gph,
                     "payment_return": b_ret,
                     "healthcare_return": round(b_rhc, 2),
                     "pharmacy_return": round(b_rph, 2),
@@ -990,9 +996,10 @@ def build_collection_report(
             "total_collection": total_gross_collection,
             "total_healthcare_collection": total_healthcare_collection,
             "total_pharmacy_collection": total_pharmacy_collection,
+            "pharmacy_sales": pharmacy_sales_gross,
             "payment_return": total_payment_return,
             "healthcare_return": round(hc_return, 2),
-            "pharmacy_return": round(pr_return, 2),
+            "pharmacy_return": pharmacy_return_amount,
             "total_income": total_income_amount,
             "categories_breakdown": categories_breakdown,
             "transaction_counts": {
