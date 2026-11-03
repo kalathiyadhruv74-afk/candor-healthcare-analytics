@@ -1672,9 +1672,9 @@ def opd_analytics_api(request):
 
     cursor = connection.cursor()
 
-    # 2. Build indexed appointments query (without expensive JOINs or temp tables on DB)
-    # Exclude placeholder follow-up slots that have no scheduled time, no arrival time, and were never attended
-    appt_where = ['a.deleted_at IS NULL', 'NOT (a.time IS NULL AND a.arrival_time IS NULL AND a.is_done = 0)']
+    # Include all non-deleted appointments, including no-shows with null time/arrival
+    # (e.g. booked slots where patient never came — still count as Not Attended)
+    appt_where = ['a.deleted_at IS NULL']
     appt_params = []
     if start_date:
         appt_where.append('a.date >= %s')
