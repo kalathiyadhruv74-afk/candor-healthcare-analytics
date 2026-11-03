@@ -1636,13 +1636,13 @@ def history_api(request):
 
 
 
-@with_db_safety(cache_prefix="opd", cache_ttl=30, heavy=True)
+@with_db_safety(cache_prefix="opd_v2", cache_ttl=30, heavy=True)
 def opd_analytics_api(request):
     """
     Live OPD Report Analytics API:
     - Total Appointments booked
-    - Attended OPD (is_done = 1)
-    - Not Attended / No-Show (is_done = 0)
+    - Attended OPD (arrival_time present — patient came)
+    - Not Attended / No-Show (no arrival_time)
     - Category breakdown (from category table)
     - Branch breakdown
     - Daily trend
@@ -1672,8 +1672,7 @@ def opd_analytics_api(request):
 
     cursor = connection.cursor()
 
-    # Include all non-deleted appointments, including no-shows with null time/arrival
-    # (e.g. booked slots where patient never came — still count as Not Attended)
+    # Include all non-deleted appointments (no-shows with null time/arrival must still appear)
     appt_where = ['a.deleted_at IS NULL']
     appt_params = []
     if start_date:
@@ -1688,10 +1687,11 @@ def opd_analytics_api(request):
     if category_id:
         appt_where.append('a.category_id = %s')
         appt_params.append(category_id)
+    # Attended = patient actually arrived (arrival_time). is_done alone is unreliable.
     if status_filter == 'attended':
-        appt_where.append('a.is_done = 1')
+        appt_where.append('a.arrival_time IS NOT NULL')
     elif status_filter == 'not_attended':
-        appt_where.append('a.is_done = 0')
+        appt_where.append('a.arrival_time IS NULL')
 
     appt_where_sql = ' AND '.join(appt_where)
 
@@ -1745,6 +1745,8 @@ def opd_analytics_api(request):
         if cid in ivf_categories and pid in donor_pids:
             continue
 
+        # True attendance = patient arrived at reception (arrival_time set)
+        is_attended = arr_time is not None
         is_done_bool = (int(is_done or 0) == 1)
         adate_str = _norm_date(adate)
         if not adate_str:
@@ -1755,20 +1757,20 @@ def opd_analytics_api(request):
         is_core = cid in core_categories
 
         total_appts += 1
-        if is_done_bool:
+        if is_attended:
             attended_count += 1
         else:
             not_attended_count += 1
 
         if is_core:
             core_cat_total += 1
-            if is_done_bool:
+            if is_attended:
                 core_cat_attended += 1
 
         cat_stats[cid]['total'] += 1
         br_stats[bid]['total'] += 1
         daily_stats[adate_str]['total'] += 1
-        if is_done_bool:
+        if is_attended:
             cat_stats[cid]['attended'] += 1
             br_stats[bid]['attended'] += 1
             daily_stats[adate_str]['attended'] += 1
@@ -1783,7 +1785,8 @@ def opd_analytics_api(request):
             'date': adate_str,
             'time': str(atime) if atime else '-',
             'arrival_time': str(arr_time) if arr_time else '-',
-            'is_done': 1 if is_done_bool else 0,
+            'is_done': 1 if is_attended else 0,
+            'is_closed': 1 if is_done_bool else 0,
             'bid': bid,
             'cid': cid,
         })
