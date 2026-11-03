@@ -2058,7 +2058,7 @@
             document.getElementById('kpiPharmacyShare').textContent = `${phShare}% of Gross`;
             document.getElementById('kpiHealthcareCount').textContent = `${(s.transaction_counts.healthcare_credits || 0).toLocaleString('en-IN')} Deposits`;
             document.getElementById('kpiPharmacyCount').textContent = `${(s.transaction_counts.pharmacy_payments || 0).toLocaleString('en-IN')} Invoices`;
-            document.getElementById('kpiReturnBreakdown').textContent = `Pharm: ${formatINR(s.pharmacy_return)}`;
+            document.getElementById('kpiReturnBreakdown').textContent = `HC: ${formatINR(s.healthcare_return)} | Pharm: ${formatINR(s.pharmacy_return)}`;
 
             // Payment modes
             const m = s.payment_modes;
@@ -2249,13 +2249,19 @@
 
             let html = '';
             branchRows.forEach(b => {
+                const retDetails = (b.payment_return > 0) 
+                    ? `<div style="font-size: 0.72rem; color: #94A3B8; font-weight: 500;">HC: ${formatINR(b.healthcare_return || 0)} | Ph: ${formatINR(b.pharmacy_return || 0)}</div>` 
+                    : '';
                 html += `
                     <tr>
                         <td><strong>${b.branch_name}</strong></td>
                         <td class="num">${formatINR(b.healthcare_collection)}</td>
                         <td class="num">${formatINR(b.pharmacy_collection)}</td>
                         <td class="num"><strong>${formatINR(b.total_collection)}</strong></td>
-                        <td class="num" style="color: #E11D48; font-weight: 700;">${b.payment_return > 0 ? '- ' + formatINR(b.payment_return) : '₹ 0'}</td>
+                        <td class="num" style="color: #E11D48; font-weight: 700;">
+                            ${b.payment_return > 0 ? '- ' + formatINR(b.payment_return) : '₹ 0'}
+                            ${retDetails}
+                        </td>
                         <td class="num" style="color: #0284C7; font-weight: 800; font-size: 0.95rem;">${formatINR(b.net_collection)}</td>
                         <td class="num"><span class="kpi-tag tag-blue">${b.pct_of_total}%</span></td>
                     </tr>
@@ -2263,13 +2269,19 @@
             });
 
             // Summary Totals Row
+            const sumRetDetails = (summary.payment_return > 0)
+                ? `<div style="font-size: 0.72rem; color: #94A3B8; font-weight: 500;">HC: ${formatINR(summary.healthcare_return || 0)} | Ph: ${formatINR(summary.pharmacy_return || 0)}</div>`
+                : '';
             html += `
                 <tr style="background: var(--bg-card-subtle); font-weight: 800;">
                     <td>TOTAL (CONSOLIDATED)</td>
                     <td class="num">${formatINR(summary.total_healthcare_collection)}</td>
                     <td class="num">${formatINR(summary.total_pharmacy_collection)}</td>
                     <td class="num">${formatINR(summary.total_collection)}</td>
-                    <td class="num" style="color: #E11D48;">${summary.payment_return > 0 ? '- ' + formatINR(summary.payment_return) : '₹ 0'}</td>
+                    <td class="num" style="color: #E11D48;">
+                        ${summary.payment_return > 0 ? '- ' + formatINR(summary.payment_return) : '₹ 0'}
+                        ${sumRetDetails}
+                    </td>
                     <td class="num" style="color: #0284C7; font-size: 1rem;">${formatINR(summary.net_collection)}</td>
                     <td class="num"><span class="kpi-tag tag-blue">100.0%</span></td>
                 </tr>

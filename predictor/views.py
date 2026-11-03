@@ -1130,7 +1130,7 @@ def collection_analytics_api(request):
 
     # --- 1. HEALTHCARE FILTERS (Strict parity with node-backend getNewCollectionReport) ---
     # Component A: indoor_deposits (is_deleted = 0)
-    hc_where = ["d.case_type = 'Credit'"]
+    hc_where = ["d.case_type IN ('Credit', 'Debit')"]
     hc_params = []
     if start_date:
         hc_where.append("DATE(d.created_at) >= %s")
@@ -1951,15 +1951,14 @@ def collection_analytics_api(request):
     # --- CORE KPI METRICS REQUESTED BY USER ---
     # 2. Total Healthcare Collection (Indoor deposits + OPD + Embryology + Income Manager)
     total_healthcare_collection = combined_hc_gross
-    # 3. Total Pharmacy Collection (Net = Sales Register - Sales Return Register)
-    total_pharmacy_collection = round(ph_gross - pr_return, 2)
+    # 3. Total Pharmacy Collection (Gross Sales Register)
+    total_pharmacy_collection = round(ph_gross, 2)
     # 1. Total Collection (Gross Combined Collection = Total Healthcare Collection + Total Pharmacy Collection)
     total_gross_collection = round(total_healthcare_collection + total_pharmacy_collection, 2)
-    # 4. PAYMENT RETURN (Pharmacy Credit Note / Sales Return Register)
-    total_payment_return = round(pr_return, 2)
-    # 5. Collection (Net Final In-Hand Collection)
-    # Total Pharmacy Collection is ALREADY net of pharmacy return (ph_gross - pr_return).
-    net_collection = round(total_healthcare_collection + total_pharmacy_collection, 2)
+    # 4. PAYMENT RETURN (Hospital Debits/Refunds + Pharmacy Credit Notes)
+    total_payment_return = round(hc_return + pr_return, 2)
+    # 5. Collection (Net Final In-Hand Collection = Gross Collection - Payment Return)
+    net_collection = round(total_gross_collection - total_payment_return, 2)
 
     # Payment modes summary (Net)
     total_cash_net = 0.0 if exclude_cash else round(max(0.0, (combined_hc_cash + ph_cash) - pr_cash), 2)
@@ -2041,11 +2040,11 @@ def collection_analytics_api(request):
     monthly_trend = []
     for ym in all_months:
         ghc = hc_monthly.get(ym, {}).get("gross_hc", 0.0)
-        rhc = 0.0
+        rhc = hc_monthly.get(ym, {}).get("return_hc", 0.0)
         gph = ph_monthly.get(ym, 0.0)
         rph = pr_monthly.get(ym, 0.0)
         tot_gross = ghc + gph
-        tot_ret = rph
+        tot_ret = rhc + rph
         tot_net = tot_gross - tot_ret
         monthly_trend.append({
             "month": ym,
@@ -2286,7 +2285,7 @@ def collection_analytics_api(request):
         b_rph = round(b_pr_data.get(bid, 0.0), 2)
 
         b_gross = round(b_ghc + b_gph, 2)
-        b_ret = round(b_rph, 2)
+        b_ret = round(b_rhc + b_rph, 2)
         b_net = round(b_gross - b_ret, 2)
 
         if b_gross > 0 or b_ret > 0:
@@ -2298,6 +2297,8 @@ def collection_analytics_api(request):
                 "healthcare_collection": b_ghc,
                 "pharmacy_collection": b_gph,
                 "payment_return": b_ret,
+                "healthcare_return": round(b_rhc, 2),
+                "pharmacy_return": round(b_rph, 2),
                 "pct_of_total": round((b_net / net_collection * 100), 1) if net_collection > 0 else 0
             })
 
@@ -2515,10 +2516,10 @@ def collection_analytics_api(request):
 
     # Total Healthcare Collection = Total Income from all departmental healthcare streams (reports/newCollectionReports)
     total_healthcare_collection = total_income_amount
-    # Total Collection (Gross) = Total Healthcare Collection + Total Pharmacy Collection
+    # Total Collection (Gross) = Total Healthcare Collection + Total Pharmacy Collection (Gross)
     total_gross_collection = round(total_healthcare_collection + total_pharmacy_collection, 2)
-    # Total Pharmacy Collection is ALREADY net of pharmacy return (ph_gross - pr_return).
-    net_collection = round(total_healthcare_collection + total_pharmacy_collection, 2)
+    # Net In-Hand Collection = Gross Collection - Total Payment Return (HC Return + Pharmacy Return)
+    net_collection = round(total_gross_collection - total_payment_return, 2)
 
     return JsonResponse({
         "status": "success",
