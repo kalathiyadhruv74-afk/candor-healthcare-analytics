@@ -64,7 +64,14 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Critical for Vercel: release MySQL after every request to avoid connection exhaustion
+    'predictor.middleware.CloseDbConnectionMiddleware',
 ]
+
+# Avoid database-backed sessions (each request was hitting MySQL for django_session)
+SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 ROOT_URLCONF = 'candor_ai.urls'
 
@@ -103,12 +110,25 @@ if USE_LIVE_DO_MYSQL:
             'PASSWORD': os.environ.get('DB_PASSWORD') or ('AVNS_' + '7tVs4OE_5U2-ULP3c-y'),
             'HOST': os.environ.get('DB_HOST', 'test.stage.pma.candorivf.com'),
             'PORT': os.environ.get('DB_PORT', '3306'),
+            # Serverless: never keep connections across requests
+            'CONN_MAX_AGE': 0,
+            'CONN_HEALTH_CHECKS': False,
             'OPTIONS': {
                 'charset': 'utf8mb4',
-                'connect_timeout': 10,
+                'connect_timeout': 8,
+                'read_timeout': 25,
+                'write_timeout': 25,
                 'read_default_file': None,
-                'init_command': "SET SESSION lock_wait_timeout = 10, SESSION wait_timeout = 30, SESSION interactive_timeout = 30, SESSION transaction_isolation = 'READ-UNCOMMITTED'",
-            }
+                # Short session timeouts + dirty-read OK for analytics dashboards
+                'init_command': (
+                    "SET SESSION lock_wait_timeout = 5, "
+                    "SESSION wait_timeout = 20, "
+                    "SESSION interactive_timeout = 20, "
+                    "SESSION net_read_timeout = 25, "
+                    "SESSION net_write_timeout = 25, "
+                    "SESSION transaction_isolation = 'READ-UNCOMMITTED'"
+                ),
+            },
         }
     }
 else:
@@ -116,6 +136,7 @@ else:
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            'CONN_MAX_AGE': 0,
         }
     }
 
